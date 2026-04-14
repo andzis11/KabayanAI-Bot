@@ -8,9 +8,15 @@ const rugcheck_1 = require("../data/rugcheck");
 const security_1 = require("../data/security");
 const honeypot_1 = require("../data/honeypot");
 const market_1 = require("../data/market");
-// Blacklist dev wallet (bisa diperluas via config)
+// Blacklist dev wallets of known rug pullers and scammers.
+// To add more wallets, use the addToBlacklist() function at runtime or
+// add wallet addresses directly to the Set below.
+// Sources: RugCheck reports, GoPlus security alerts, community reports.
 const DEV_BLACKLIST = new Set([
-// tambah wallet rug terkenal di sini
+// Example known rug puller wallets (replace with real addresses from RugCheck/GoPlus):
+// "RugPullerWalletAddress1...",
+// "ScammerWalletAddress2...",
+// To add dynamically: import { addToBlacklist } from './securityGate'; addToBlacklist('wallet_address');
 ]);
 async function runSecurityGate(connection, mint, devWallet) {
     let score = 100;
@@ -37,8 +43,6 @@ async function runSecurityGate(connection, mint, devWallet) {
     const goplus = goPlusData.status === "fulfilled" ? goPlusData.value : null;
     const honeypot = honeypotData.status === "fulfilled" ? honeypotData.value : null;
     const market = marketData.status === "fulfilled" ? marketData.value : null;
-    // Detect if this is likely a new Pump.fun token
-    const isNewToken = !rug && !market;
     // Check 1: Mint Authority harus disabled
     if (rug) {
         checks.mint_authority_disabled = !rug.mintAuthority;
@@ -93,16 +97,9 @@ async function runSecurityGate(connection, mint, devWallet) {
         }
     }
     else {
-        // Kedua API gagal = untuk token baru, berikan skor lebih longgar
-        if (isNewToken) {
-            score -= 10; // Lebih longgar untuk token baru
-            checks.honeypot_ok = true; // Anggap ok sementara
-            logger_1.logger.warn("[SECURITY] Honeypot check skipped for new token - will monitor after purchase");
-        }
-        else {
-            score -= 20;
-            issues.push("HONEYPOT_CHECK_FAILED");
-        }
+        // Both honeypot APIs failed — treat as potential risk
+        score -= 20;
+        issues.push("HONEYPOT_CHECK_FAILED");
     }
     // Check 4: Top 10 holders harus < 25% supply
     if (rug) {
@@ -113,8 +110,9 @@ async function runSecurityGate(connection, mint, devWallet) {
         }
     }
     else {
-        // RugCheck unavailable, skip holder check untuk token baru
-        checks.top10_holders_ok = true;
+        // RugCheck unavailable — deduct score for missing data
+        score -= 10;
+        issues.push("HOLDER_CHECK_UNAVAILABLE");
     }
     // Check 5: Bundled supply — max 5 wallets di block 0
     if (rug) {
@@ -125,10 +123,11 @@ async function runSecurityGate(connection, mint, devWallet) {
         }
     }
     else {
-        // RugCheck unavailable, skip bundled check
-        checks.bundled_supply_ok = true;
+        // RugCheck unavailable — deduct score for missing data
+        score -= 5;
+        issues.push("BUNDLED_CHECK_UNAVAILABLE");
     }
-    // Check 6: Pool liquidity > 30 SOL ATAU > $1,000 (lebih longgar untuk token baru)
+    // Check 6: Pool liquidity > 30 SOL ATAU > $1,000
     if (market) {
         const liqOk = market.liquiditySol > 30 || market.liquidityUsd > 1000;
         checks.pool_liquidity_ok = liqOk;
@@ -140,16 +139,11 @@ async function runSecurityGate(connection, mint, devWallet) {
                 market.liquidityUsd.toFixed(0));
         }
     }
-    else if (isNewToken) {
-        // Token baru Pump.fun biasanya punya liquidity rendah di awal
-        checks.pool_liquidity_ok = true;
-        score -= 5;
-    }
     else {
-        score -= 10;
+        score -= 15;
         issues.push("MARKET_DATA_UNAVAILABLE");
     }
-    // Check 7: Volume / MCap > 0.5 (lebih longgar)
+    // Check 7: Volume / MCap > 0.5
     if (market) {
         const vmRatio = market.volumeToMcap24h;
         checks.volume_to_mcap_ok = vmRatio >= 0.5;
@@ -158,9 +152,9 @@ async function runSecurityGate(connection, mint, devWallet) {
             issues.push("LOW_VOL_MCAP_" + vmRatio.toFixed(2));
         }
     }
-    else if (isNewToken) {
-        // Token baru belum punya volume
-        checks.volume_to_mcap_ok = true;
+    else {
+        score -= 5;
+        issues.push("VOLUME_CHECK_UNAVAILABLE");
     }
     // Check 8: Dev wallet tidak di blacklist
     if (devWallet) {
@@ -174,8 +168,8 @@ async function runSecurityGate(connection, mint, devWallet) {
     else {
         checks.dev_wallet_clean = true; // tidak ada dev wallet = anggap ok
     }
-    // PASSED jika score >= 30 (lebih rendah dari sebelumnya) dan tidak ada honeypot/mint authority
-    const passed = score >= 30 &&
+    // PASSED jika score >= 50 dan tidak ada honeypot/mint authority
+    const passed = score >= 50 &&
         !issues.includes("HONEYPOT_DETECTED") &&
         !issues.includes("MINT_AUTHORITY_ENABLED");
     const reason = passed ? "PASSED" : issues.join(", ");

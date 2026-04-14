@@ -105,7 +105,9 @@ function releaseLock() {
         logger_1.logger.error("[LOCK] Error releasing lock: " + error.message);
     }
 }
-let bot = null;
+let bot = new node_telegram_bot_api_1.default(env_1.ENV.TELEGRAM_BOT_TOKEN, {
+    polling: true,
+});
 const agent = new agent_1.KabayanAgent(wallet_1.connection, {
     dailyCapital: env_1.ENV.DAILY_CAPITAL,
     baseRiskPercent: env_1.ENV.BASE_RISK_PERCENT,
@@ -119,6 +121,12 @@ let pumpFunWs = null;
 let alphaMonitorInterval = null;
 let monitorRunning = false;
 const sellingPositions = new Set();
+// --- Telegram Authorization ---
+function isAuthorized(chatId) {
+    if (!env_1.ENV.CHAT_ID)
+        return true; // If CHAT_ID not set, allow all (with warning)
+    return chatId === Number(env_1.ENV.CHAT_ID);
+}
 const mainMenu = {
     reply_markup: {
         inline_keyboard: [
@@ -243,6 +251,10 @@ function formatSniperStatus() {
     ].join("\n");
 }
 bot.onText(/\/start/, async (msg) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     const addr = await (0, wallet_1.getWalletAddress)();
     const bal = await (0, wallet_1.getBalance)();
     await bot.sendMessage(msg.chat.id, "🤖 KABAYAN AGENT v3.0\n\n📦 Wallet: " +
@@ -252,14 +264,26 @@ bot.onText(/\/start/, async (msg) => {
         " SOL\n\nPilih aksi:", mainMenu);
 });
 bot.onText(/\/help/, async (msg) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     await bot.sendMessage(msg.chat.id, "Help\n\n/start - Menu\n/sniper - Sniper Settings\n/status\n/report\n/health\n/backtest\n/my_wallet\n/withdraw <addr> <amount>");
 });
 bot.onText(/\/my_wallet/, async (msg) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     const addr = await (0, wallet_1.getWalletAddress)();
     const bal = await (0, wallet_1.getBalance)();
     await bot.sendMessage(msg.chat.id, "Wallet\n\nAddress: " + addr + "\nBalance: " + bal.toFixed(4) + " SOL");
 });
 bot.onText(/\/status/, async (msg) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     const s = agent.getState();
     const m = (0, mevScanner_1.getMEVState)();
     const ps = priceFeed.getStats();
@@ -283,9 +307,17 @@ bot.onText(/\/status/, async (msg) => {
         s.losses);
 });
 bot.onText(/\/report/, async (msg) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     await bot.sendMessage(msg.chat.id, (0, dailyReport_1.formatDailyReport)((0, dailyReport_1.generateDailyReport)()));
 });
 bot.onText(/\/health/, async (msg) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     const h = await (0, healthCheck_1.checkHealth)();
     await bot.sendMessage(msg.chat.id, "Health\n\nRPC: " +
         (h.solanaRpc ? "OK" : "FAIL") +
@@ -297,32 +329,80 @@ bot.onText(/\/health/, async (msg) => {
         h.uptime);
 });
 bot.onText(/\/backtest/, async (msg) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     await bot.sendMessage(msg.chat.id, "Backtest Engine\n\nPilih mode:", backtestMenu);
 });
 bot.onText(/\/sniper/, async (msg) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     await bot.sendMessage(msg.chat.id, formatSniperStatus(), getSniperMenu());
 });
 bot.onText(/\/withdraw (.+)/, async (msg, match) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     const args = match?.[1]?.split(" ");
     if (!args || args.length < 2) {
         await bot.sendMessage(msg.chat.id, "Format: /withdraw <addr> <amount>");
+        return;
+    }
+    const address = args[0];
+    const amount = args[1];
+    // Ask for confirmation
+    const confirmMsg = await bot.sendMessage(msg.chat.id, "\u26a0\ufe0f CONFIRM WITHDRAWAL\nTo: " +
+        address +
+        "\nAmount: " +
+        amount +
+        " SOL\n\nReply YES to confirm (within 30s)");
+    // Wait for user confirmation with timeout
+    const confirmed = await new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+            bot.removeListener("message", confirmListener);
+            resolve(false);
+        }, 30000);
+        const confirmListener = (m) => {
+            if (m.chat.id !== msg.chat.id)
+                return;
+            clearTimeout(timeout);
+            bot.removeListener("message", confirmListener);
+            if (m.text?.trim().toUpperCase() === "YES") {
+                resolve(true);
+            }
+            else {
+                resolve(false);
+            }
+        };
+        bot.on("message", confirmListener);
+    });
+    if (!confirmed) {
+        await bot.sendMessage(msg.chat.id, "\u274c Withdrawal cancelled");
         return;
     }
     try {
         const { SystemProgram, PublicKey, Transaction, sendAndConfirmTransaction, LAMPORTS_PER_SOL, } = await Promise.resolve().then(() => __importStar(require("@solana/web3.js")));
         const tx = new Transaction().add(SystemProgram.transfer({
             fromPubkey: wallet_1.walletPubkey,
-            toPubkey: new PublicKey(args[0]),
-            lamports: Math.round(parseFloat(args[1]) * LAMPORTS_PER_SOL),
+            toPubkey: new PublicKey(address),
+            lamports: Math.round(parseFloat(amount) * LAMPORTS_PER_SOL),
         }));
         const sig = await sendAndConfirmTransaction(wallet_1.connection, tx, [wallet_1.wallet]);
-        await bot.sendMessage(msg.chat.id, "Withdraw: " + args[1] + " SOL\nTX: " + sig);
+        await bot.sendMessage(msg.chat.id, "Withdraw: " + amount + " SOL\nTX: " + sig);
     }
     catch (e) {
         await bot.sendMessage(msg.chat.id, "Error: " + e.message);
     }
 });
 bot.onText(/\/alpha_add (.+)/, async (msg, match) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     const w = match?.[1]?.trim();
     if (w) {
         (0, alphaWallet_1.addAlphaWallet)(w);
@@ -330,6 +410,10 @@ bot.onText(/\/alpha_add (.+)/, async (msg, match) => {
     }
 });
 bot.onText(/\/alpha_remove (.+)/, async (msg, match) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     const w = match?.[1]?.trim();
     if (w) {
         (0, alphaWallet_1.removeAlphaWallet)(w);
@@ -337,6 +421,10 @@ bot.onText(/\/alpha_remove (.+)/, async (msg, match) => {
     }
 });
 bot.onText(/\/alpha_list/, async (msg) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     const list = (0, alphaWallet_1.getAlphaWallets)();
     if (list.length === 0) {
         await bot.sendMessage(msg.chat.id, "No alpha wallets");
@@ -346,6 +434,10 @@ bot.onText(/\/alpha_list/, async (msg) => {
         list.map((w, i) => i + 1 + ". " + w).join("\n"));
 });
 bot.onText(/\/bt_custom (.+)/, async (msg, match) => {
+    if (!isAuthorized(msg.chat.id)) {
+        await bot.sendMessage(msg.chat.id, "\u26d4 Unauthorized access");
+        return;
+    }
     const args = match?.[1]?.split(" ");
     if (!args || args.length < 4) {
         await bot.sendMessage(msg.chat.id, "Format: /bt_custom <capital> <risk%> <days> <strategy>");
@@ -392,6 +484,10 @@ bot.on("callback_query", async (q) => {
     const data = q.data;
     if (!chatId)
         return;
+    if (!isAuthorized(chatId)) {
+        await bot.answerCallbackQuery(q.id, { text: "\u26d4 Unauthorized access" });
+        return;
+    }
     if (!(0, rateLimit_1.checkRateLimit)("cb:" + data)) {
         await bot.answerCallbackQuery(q.id, { text: "Rate limited" });
         return;
@@ -870,14 +966,20 @@ bot.on("callback_query", async (q) => {
 });
 async function handleBuyManual(chatId) {
     await bot.sendMessage(chatId, "📥 Buy Manual\n\nKirim Contract Address (CA):");
+    const timeout = setTimeout(() => {
+        bot.removeListener("message", listener);
+        bot.sendMessage(chatId, "\u23f0 Timeout - cancelled");
+    }, 30000);
     const listener = async (msg) => {
         if (msg.chat.id !== chatId)
             return;
         const ca = msg.text?.trim();
         if (!ca || ca.length < 32 || ca.startsWith("/")) {
+            clearTimeout(timeout);
             bot.removeListener("message", listener);
             return;
         }
+        clearTimeout(timeout);
         bot.removeListener("message", listener);
         const loadingMsg = await bot.sendMessage(chatId, "\u23F3 Analyzing " + ca.slice(0, 12) + "...");
         // Fetch token info
@@ -1269,15 +1371,7 @@ async function startup() {
     logger_1.logger.info("  KABAYAN AGENT v3.0 Starting...");
     logger_1.logger.info("========================================");
     await (0, prelaunchCheck_1.runPrelaunchCheck)();
-    // Initialize Telegram bot with polling
-    try {
-        bot = new node_telegram_bot_api_1.default(env_1.ENV.TELEGRAM_BOT_TOKEN, { polling: true });
-        logger_1.logger.info("[TELEGRAM] Bot initialized successfully");
-    }
-    catch (error) {
-        logger_1.logger.error("[TELEGRAM] Failed to initialize bot: " + error.message);
-        process.exit(1);
-    }
+    logger_1.logger.info("[TELEGRAM] Bot initialized successfully");
     (0, migrate_1.migrateOldData)();
     (0, memory_1.loadMemory)();
     const savedPositions = (0, positionRepo_1.loadPositions)();
