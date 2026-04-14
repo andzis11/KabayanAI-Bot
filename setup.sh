@@ -1,223 +1,208 @@
 #!/bin/bash
+# Kabayan Agent v3.0 Setup Wizard
+# Works on Linux, Mac, and Windows (Git Bash/WSL)
 
 set -e
 
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0m'
 BOLD='\033[1m'
+NC='\033[0m' # No Color
 
-clear
+echo ""
+echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════╗${NC}"
+echo -e "${BOLD}${CYAN}║         🍎 KABAYAN AGENT v3.0 SETUP          ║${NC}"
+echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════╝${NC}"
+echo ""
 
-echo -e "${CYAN}"
-echo "  ╔══════════════════════════════════════════════╗"
-echo "  ║                                              ║"
-echo "  ║      🍎 KABAYAN AGENT v3.0                  ║"
-echo "  ║      Setup Wizard                            ║"
-echo "  ║                                              ║"
-echo "  ║      AI Trading Bot On-Chain Solana          ║"
-echo "  ║      MEV Bot | AI Agent v2.0                 ║"
-echo "  ║                                              ║"
-echo "  ╚══════════════════════════════════════════════╝"
-echo -e "${NC}"
-
+# Step 1: Check Dependencies
 echo -e "${BOLD}Step 1/7: Checking dependencies...${NC}"
 echo ""
 
-MISSING=()
-
 if ! command -v node &> /dev/null; then
-    MISSING+=("Node.js v18+")
+    echo -e "  ${RED}✗ Node.js not found${NC}"
+    echo "  Please install Node.js v20+ first"
+    exit 1
 else
-    NODE_VERSION=$(node -v | sed 's/v//' | cut -d. -f1)
-    if [ "$NODE_VERSION" -lt 18 ]; then
-        MISSING+=("Node.js v18+ (found v$(node -v))")
-    else
-        echo -e "  ${GREEN}✓${NC} Node.js $(node -v)"
-    fi
+    NODE_VER=$(node --version)
+    echo -e "  ${GREEN}✓${NC} Node.js $NODE_VER"
 fi
 
 if ! command -v npm &> /dev/null; then
-    MISSING+=("npm")
+    echo -e "  ${RED}✗ npm not found${NC}"
+    exit 1
 else
-    echo -e "  ${GREEN}✓${NC} npm $(npm -v)"
+    NPM_VER=$(npm --version)
+    echo -e "  ${GREEN}✓${NC} npm $NPM_VER"
 fi
 
 if ! command -v git &> /dev/null; then
-    MISSING+=("git")
-else
-    echo -e "  ${GREEN}✓${NC} git $(git --version | awk '{print $3}')"
-fi
-
-if [ ${#MISSING[@]} -gt 0 ]; then
-    echo ""
-    echo -e "  ${RED}✗ Missing dependencies:${NC}"
-    for dep in "${MISSING[@]}"; do
-        echo -e "    ${RED}• $dep${NC}"
-    done
-    echo ""
-    echo -e "  ${YELLOW}Install them first, then run this script again.${NC}"
+    echo -e "  ${RED}✗ git not found${NC}"
     exit 1
+else
+    GIT_VER=$(git --version)
+    echo -e "  ${GREEN}✓${NC} $GIT_VER"
 fi
 
 echo ""
+
+# Step 2: Check Canvas Libraries
 echo -e "${BOLD}Step 2/7: Checking system libraries...${NC}"
 echo ""
 
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    if ! dpkg -l | grep -q libcairo2-dev; then
-        echo -e "  ${YELLOW}⚠ Canvas libraries not found — installing...${NC}"
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
-        echo -e "  ${GREEN}✓${NC} Canvas libraries installed"
-    else
-        echo -e "  ${GREEN}✓${NC} Canvas libraries present"
-    fi
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-    echo -e "  ${GREEN}✓${NC} macOS detected"
+if [ -f "/usr/bin/ldconfig" ] || [ -f "/sbin/ldconfig" ]; then
+    echo -e "  ${GREEN}✓${NC} System libraries present"
 else
-    echo -e "  ${YELLOW}⚠ Windows detected — install windows-build-tools if needed${NC}"
+    echo -e "  ${YELLOW}⚠${NC} System check skipped (Mac/WSL)"
 fi
 
 echo ""
+
+# Step 3: Install Dependencies
 echo -e "${BOLD}Step 3/7: Installing npm packages...${NC}"
 echo ""
 
 if [ -d "node_modules" ]; then
     echo -e "  ${YELLOW}⚠ node_modules exists — reinstalling${NC}"
-    rm -rf node_modules
+    rm -rf node_modules package-lock.json
 fi
 
 npm install
-
 echo -e "  ${GREEN}✓${NC} Dependencies installed"
 echo ""
+
+# Step 4: Create Directories
 echo -e "${BOLD}Step 4/7: Creating directories...${NC}"
 echo ""
 
 mkdir -p data logs src/assets
-
 echo -e "  ${GREEN}✓${NC} data/"
 echo -e "  ${GREEN}✓${NC} logs/"
 echo -e "  ${GREEN}✓${NC} src/assets/"
 echo ""
 
+# Step 5: Configuration
 echo -e "${BOLD}Step 5/7: Configuration${NC}"
 echo ""
 
-SKIP_ENV=false
-
 if [ -f ".env" ]; then
-    echo -e "  ${YELLOW}⚠ .env already exists${NC}"
-    read -p "  Overwrite? (y/N): " OVERWRITE
+    read -p "  .env already exists. Overwrite? (y/N): " OVERWRITE
     if [[ "$OVERWRITE" != "y" && "$OVERWRITE" != "Y" ]]; then
         echo -e "  ${GREEN}✓${NC} Keeping existing .env"
-        SKIP_ENV=true
+    else
+        echo -e "  ${YELLOW}⚠${NC} Overwriting .env"
     fi
 fi
 
-if [ "$SKIP_ENV" != "true" ]; then
-    cp .env.example .env
+if [[ ! -f ".env" || "$OVERWRITE" == "y" || "$OVERWRITE" == "Y" ]]; then
+    echo "  Please enter your configuration values."
+    echo "  (Press Enter to skip optional fields)"
+    echo ""
 
-    echo ""
-    echo -e "  ${CYAN}── Telegram Bot ──${NC}"
-    echo -e "  1. Open ${BOLD}@BotFather${NC} in Telegram"
-    echo -e "  2. Type ${BOLD}/newbot${NC}, follow instructions"
-    echo -e "  3. Copy the bot token"
-    echo ""
-    read -p "  Telegram Bot Token: " TG_TOKEN
+    read -p "  TELEGRAM_BOT_TOKEN (from @BotFather): " BOT_TOKEN
+    while [[ -z "$BOT_TOKEN" ]]; do
+        echo -e "  ${RED}✗${NC} Token is required!"
+        read -p "  TELEGRAM_BOT_TOKEN: " BOT_TOKEN
+    done
 
-    echo ""
-    echo -e "  ${CYAN}── Chat ID ──${NC}"
-    echo -e "  1. Open ${BOLD}@userinfobot${NC} in Telegram"
-    echo -e "  2. Type ${BOLD}/start${NC}"
-    echo -e "  3. Copy your ID"
-    echo ""
-    read -p "  Telegram Chat ID: " TG_CHAT
+    read -p "  TELEGRAM_CHAT_ID (from @userinfobot): " CHAT_ID
+    while [[ -z "$CHAT_ID" ]]; do
+        echo -e "  ${RED}✗${NC} Chat ID is required!"
+        read -p "  TELEGRAM_CHAT_ID: " CHAT_ID
+    done
 
-    echo ""
-    echo -e "  ${CYAN}── Solana Wallet ──${NC}"
-    echo -e "  ${YELLOW}⚠ Use a DEDICATED trading wallet!${NC}"
-    echo -e "  Format: Base58 private key (not number array)"
-    echo ""
-    read -p "  Solana Private Key (Base58): " SOL_KEY
+    read -p "  SOLANA_PRIVATE_KEY (Base58): " PRIV_KEY
+    while [[ -z "$PRIV_KEY" ]]; do
+        echo -e "  ${RED}✗${NC} Private key is required!"
+        read -p "  SOLANA_PRIVATE_KEY: " PRIV_KEY
+    done
 
-    echo ""
-    echo -e "  ${CYAN}── Helius API ──${NC}"
-    echo -e "  Sign up: ${CYAN}https://dev.helius.xyz${NC}"
-    echo ""
-    read -p "  Helius API Key: " HELIUS_KEY
+    read -p "  HELIUS_API_KEY (from dev.helius.xyz): " HELIUS_KEY
+    while [[ -z "$HELIUS_KEY" ]]; do
+        echo -e "  ${RED}✗${NC} Helius key is required!"
+        read -p "  HELIUS_API_KEY: " HELIUS_KEY
+    done
 
-    echo ""
-    echo -e "  ${CYAN}── AI Providers (at least one required) ──${NC}"
-    echo ""
-    echo -e "  ${BOLD}Groq${NC} (FREE, ~300ms) — ${CYAN}https://console.groq.com${NC}"
-    read -p "  Groq API Key (Enter to skip): " GROQ_KEY
+    read -p "  GROQ_API_KEY (or press Enter for OpenAI/Anthropic): " GROQ_KEY
+    if [[ -z "$GROQ_KEY" ]]; then
+        read -p "  ANTHROPIC_API_KEY: " ANTHROPIC_KEY
+        if [[ -z "$ANTHROPIC_KEY" ]]; then
+            read -p "  OPENAI_API_KEY: " OPENAI_KEY
+            while [[ -z "$OPENAI_KEY" ]]; do
+                echo -e "  ${RED}✗${NC} At least one AI provider is required!"
+                read -p "  OPENAI_API_KEY: " OPENAI_KEY
+            done
+        fi
+    fi
 
-    echo ""
-    echo -e "  ${BOLD}Anthropic Claude${NC} — ${CYAN}https://console.anthropic.com${NC}"
-    read -p "  Anthropic API Key (Enter to skip): " ANTHROPIC_KEY
+    read -p "  JITO_API_KEY (optional, for MEV): " JITO_KEY
 
-    echo ""
-    echo -e "  ${BOLD}OpenAI GPT-4o${NC} — ${CYAN}https://platform.openai.com${NC}"
-    read -p "  OpenAI API Key (Enter to skip): " OPENAI_KEY
-
-    echo ""
-    echo -e "  ${CYAN}── Jito (for MEV Bot) ──${NC}"
-    echo -e "  ${CYAN}https://jito.network${NC}"
-    read -p "  Jito API Key (Enter to skip): " JITO_KEY
-
-    echo ""
-    echo -e "  ${CYAN}── Trading Settings ──${NC}"
     read -p "  Daily Capital (SOL) [default: 1]: " DAILY_CAP
     DAILY_CAP=${DAILY_CAP:-1}
 
-    read -p "  Base Risk % per trade [default: 2]: " BASE_RISK
+    read -p "  Base Risk % [default: 2]: " BASE_RISK
     BASE_RISK=${BASE_RISK:-2}
 
     cat > .env << EOF
-# ============================================
-#  KABAYAN AGENT v3.0 — Environment Config
-#  Generated by Setup Wizard
-# ============================================
+# TELEGRAM
+TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
+TELEGRAM_CHAT_ID=${CHAT_ID}
 
-# === WAJIB ===
-TELEGRAM_BOT_TOKEN=${TG_TOKEN}
-SOLANA_PRIVATE_KEY=${SOL_KEY}
+# SOLANA
+SOLANA_PRIVATE_KEY=${PRIV_KEY}
 HELIUS_API_KEY=${HELIUS_KEY}
 
-# === TELEGRAM ===
-CHAT_ID=${TG_CHAT}
-BOT_USERNAME=KabayanBot
-DAILY_REPORT_CHAT_ID=${TG_CHAT}
-
-# === AI PROVIDERS ===
+# AI PROVIDERS (Fill at least one)
 GROQ_API_KEY=${GROQ_KEY}
 ANTHROPIC_API_KEY=${ANTHROPIC_KEY}
 OPENAI_API_KEY=${OPENAI_KEY}
 
-# === AI AGENT ===
+# AGENT CONFIG
 DAILY_CAPITAL=${DAILY_CAP}
 BASE_RISK_PERCENT=${BASE_RISK}
 ALPHA_MULTIPLIER=1.5
 FEE_CAP=0.5
 
-# === MEV BOT ===
+# MEV BOT (Optional)
 JITO_API_KEY=${JITO_KEY}
-JITO_TIP_LAMPORTS echo -e "  ${YELLOW}⚠ Found trades.json — migrating...${NC}"
+JITO_TIP_LAMPORTS=50000
+MEV_ENABLED=false
+MEV_MIN_SPREAD_PERCENT=2
+MEV_TRADE_SIZE_SOL=0.1
+
+# GENERAL
+WHITELIST_MODE=open
+EOF
+
+    echo ""
+    echo -e "  ${GREEN}✓${NC} .env created"
+fi
+
+echo ""
+
+# Step 6: Database Migration
+echo -e "${BOLD}Step 6/7: Database setup...${NC}"
+echo ""
+
+if [ -f "trades.json" ]; then
+    echo -e "  ${YELLOW}⚠ Found trades.json — migrating...${NC}"
     npm run migrate 2>/dev/null || echo -e "  ${YELLOW}⚠ Migration skipped (will run on first start)${NC}"
 else
     echo -e "  ${GREEN}✓${NC} No old data to migrate"
 fi
 
 echo ""
-echo -e "${BOLD}Step 7/7: Pre-launch verification...${NC}"
+
+# Step 7: Build & Verify
+echo -e "${BOLD}Step 7/7: Building project...${NC}"
 echo ""
 
-npx tsc --noEmit 2>/dev/null && echo -e "  ${GREEN}✓${NC} TypeScript OK" || echo -e "  ${YELLOW}⚠ TypeScript warnings (non-critical)"
+npm run build
+echo -e "  ${GREEN}✓${NC} Build successful"
 
 echo ""
 echo -e "${GREEN}"
@@ -225,27 +210,7 @@ echo "  ╔═══════════════════════
 echo "  ║                                              ║"
 echo "  ║      ✅ Setup Complete!                      ║"
 echo "  ║                                              ║"
-echo "  ╚════════════════════════════NC} .env created"
-fi
-
-echo ""
-echo -=50000
-MEV_MIN_SOL_SIZE=0.5
-MEV_MAX_SLIPPAGE=10
-MEV_ENABLED=false
-MEV_MIN_SPREAD_PERCENT=2
-MEV_TRADE_SIZE_SOL=0.1
-
-# === CONFIG ===
-WHITELIST_MODE=open
-EOF
-
-    echo ""
-    echo -e "  ${GREEN}✓${e "${BOLD}Step 6/7: Database setup...${NC}"
-echo ""
-
-if [ -f "trades.json" ]; then
-   ══════════════════╝"
+echo "  ╚══════════════════════════════════════════════╝"
 echo -e "${NC}"
 
 echo -e "  ${BOLD}Quick Start:${NC}"
@@ -254,7 +219,6 @@ echo -e "  ${CYAN}Development:${NC}"
 echo -e "    npm start"
 echo ""
 echo -e "  ${CYAN}Production:${NC}"
-echo -e "    npm run build"
 echo -e "    pm2 start ecosystem.config.js"
 echo -e "    pm2 logs kabayan-agent"
 echo ""
@@ -271,4 +235,3 @@ if [[ "$START_NOW" == "y" || "$START_NOW" == "Y" ]]; then
     echo ""
     npm start
 fi
-
