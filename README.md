@@ -295,42 +295,44 @@ Dependencies
   }
 }
 
-Environment Variables
+## 🔧 Environment Variables
 
-Variable	Required	Description
-TELEGRAM_BOT_TOKEN	✅	Dari @BotFather
-SOLANA_PRIVATE_KEY	✅	Base58 format, wallet khusus trading
-HELIUS_API_KEY	✅	
-https://dev.helius.xyz
-CHAT_ID	✅	Dari @userinfobot
-GROQ_API_KEY	⚡	Minimal satu AI provider
-ANTHROPIC_API_KEY	⚡	Opsional
-OPENAI_API_KEY	⚡	Opsional
-JITO_API_KEY	❌	Untuk MEV bot
-DAILY_CAPITAL	❌	Default: 1 SOL
-BASE_RISK_PERCENT	❌	Default: 2%
-ALPHA_MULTIPLIER	❌	Default: 1.5x
-MEV_ENABLED	❌	Default: false
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `TELEGRAM_BOT_TOKEN` | ✅ | Dari [@BotFather](https://t.me/BotFather) |
+| `SOLANA_PRIVATE_KEY` | ✅ | Base58 format, wallet khusus trading |
+| `HELIUS_API_KEY` | ✅ | [dev.helius.xyz](https://dev.helius.xyz) |
+| `CHAT_ID` | ✅ | Dari [@userinfobot](https://t.me/userinfobot) |
+| `GROQ_API_KEY` | ⚡ | Minimal satu AI provider |
+| `ANTHROPIC_API_KEY` | ⚡ | Opsional |
+| `OPENAI_API_KEY` | ⚡ | Opsional |
+| `JITO_API_KEY` | ❌ | Untuk MEV bot |
+| `DAILY_CAPITAL` | ❌ | Default: 1 SOL |
+| `BASE_RISK_PERCENT` | ❌ | Default: 2% |
+| `ALPHA_MULTIPLIER` | ❌ | Default: 1.5x |
+| `MEV_ENABLED` | ❌ | Default: false |
 
-⚠️ Disclaimer
+---
 
-TRADING MEMECOIN ADALAH AKTIVITAS SPEKULATIF BERISIKO SANGAT TINGGI.
+## ⚠️ Disclaimer
 
+> **TRADING MEMECOIN ADALAH AKTIVITAS SPEKULATIF BERISIKO SANGAT TINGGI.**
 
-Kamu bisa kehilangan seluruh modal
-Bot ini adalah alat bantu, bukan mesin uang otomatis
-Tidak ada jaminan profit dalam bentuk apapun
-Selalu gunakan uang yang siap kamu rugikan
-DYOR (Do Your Own Research) sebelum trading
-Mulai dengan modal kecil (0.1-0.5 SOL)
-Paper trade dulu sebelum live
+- Kamu bisa kehilangan seluruh modal
+- Bot ini adalah alat bantu, **bukan mesin uang otomatis**
+- Tidak ada jaminan profit dalam bentuk apapun
+- Selalu gunakan uang yang siap kamu rugikan
+- DYOR (Do Your Own Research) sebelum trading
+- Mulai dengan modal kecil (0.1-0.5 SOL)
+- Paper trade dulu sebelum live
 
+---
 
-License
+## 📜 License
 
 MIT
 
+---
 
-
-Kabayan Agent v3.0 — Built with ❤️ for Solana traders who stay disciplined
+**Kabayan Agent v3.0** — Built with ❤️ for Solana traders who stay disciplined
 
