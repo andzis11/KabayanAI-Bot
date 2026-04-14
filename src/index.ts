@@ -1539,12 +1539,8 @@ async function startup() {
     logger.info("[TELEGRAM] Bot initialized successfully");
   } catch (error: any) {
     logger.error("[TELEGRAM] Failed to initialize bot: " + error.message);
-    releaseLock();
     process.exit(1);
   }
-
-  // Setup all bot handlers
-  setupBotHandlers();
 
   migrateOldData();
   loadMemory();

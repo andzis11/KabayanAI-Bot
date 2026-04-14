@@ -1,0 +1,23 @@
+export declare const ENV: {
+    readonly TELEGRAM_BOT_TOKEN: string;
+    readonly CHAT_ID: string;
+    readonly BOT_USERNAME: string;
+    readonly SOLANA_PRIVATE_KEY: string;
+    readonly HELIUS_API_KEY: string;
+    readonly GROQ_API_KEY: string;
+    readonly ANTHROPIC_API_KEY: string;
+    readonly OPENAI_API_KEY: string;
+    readonly DAILY_CAPITAL: number;
+    readonly BASE_RISK_PERCENT: number;
+    readonly ALPHA_MULTIPLIER: number;
+    readonly FEE_CAP: number;
+    readonly JITO_API_KEY: string;
+    readonly JITO_TIP_LAMPORTS: number;
+    readonly MEV_MIN_SOL_SIZE: number;
+    readonly MEV_MAX_SLIPPAGE: number;
+    readonly MEV_ENABLED: boolean;
+    readonly MEV_MIN_SPREAD_PERCENT: number;
+    readonly MEV_TRADE_SIZE_SOL: number;
+    readonly WHITELIST_MODE: "open" | "whitelist" | "invite";
+    readonly DAILY_REPORT_CHAT_ID: string;
+};

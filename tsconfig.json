@@ -2,22 +2,19 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
-    "lib": [
-      "ES2022"
-    ],
+    "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
+    "strictNullChecks": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": true,
-    "sourceMap": true
+    "sourceMap": true,
   },
-  "include": [
-    "src/**/*"
-  ],
+  "include": ["src/**/*"],
   "exclude": [
     "node_modules",
     "dist",
@@ -27,6 +24,6 @@
     "ecosystem.config.js",
     "ecosystem.config.cjs",
     "*.cjs",
-    "*.config.js"
-  ]
+    "*.config.js",
+  ],
 }
