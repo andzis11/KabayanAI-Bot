@@ -4,10 +4,10 @@
 
 ---
 
-## Fitur
+## ✨ Fitur
 
 | Kategori | Fitur |
-|---|---|
+|----------|-------|
 | **Trading** | Buy/Sell Manual, Paper Trading |
 | **AI Agent v2.0** | 8-layer security gate, SL/TP engine, trailing stop, position sizing |
 | **AI Sniper** | Auto-scan Pump.fun, deep honeypot check, auto buy |
@@ -22,69 +22,82 @@
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
-### 1. Clone
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/andzis11/Kabayan-Agent.git
 cd Kabayan-Agent
-2. Setup
+```
 
-Linux/Mac:chmod +x setup.sh
+### 2. Setup
+
+**Linux/Mac:**
+```bash
+chmod +x setup.sh
 bash setup.sh
+```
 
-Windows:
+**Windows:**
+```powershell
 powershell -ExecutionPolicy Bypass -File setup.ps1
+```
+
 Setup wizard akan memandu kamu mengisi:
+- **Telegram Bot Token** (dari [@BotFather](https://t.me/BotFather))
+- **Chat ID** (dari [@userinfobot](https://t.me/userinfobot))
+- **Solana Private Key** (Base58, wallet khusus trading!)
+- **Helius API Key** ([dev.helius.xyz](https://dev.helius.xyz))
+- **AI Provider keys** (Groq, Anthropic, OpenAI — minimal satu)
+- **Jito API Key** (untuk MEV bot)
+- **Trading settings** (daily capital, risk %)
 
-Telegram Bot Token (dari @BotFather)
-Chat ID (dari @userinfobot)
-Solana Private Key (Base58, wallet khusus trading!)
-Helius API Key (
-https://dev.helius.xyz
-)
-AI Provider keys (Groq, Anthropic, OpenAI — minimal satu)
-Jito API Key (untuk MEV bot)
-Trading settings (daily capital, risk %)
+### 3. Jalankan
 
-3. Jalankan
-
-# Development
+**Development:**
+```bash
 npm start
+```
 
-# Production
+**Production:**
+```bash
 npm run build
 npm install -g pm2
 pm2 start ecosystem.config.js
 pm2 logs kabayan-agent
+```
 
-4. Buka Telegram
+### 4. Buka Telegram
 
-Kirim /start ke bot kamu.
+Kirim `/start` ke bot kamu.
 
+---
 
+## 📱 Commands
 
-Commands
+| Command | Fungsi |
+|---------|--------|
+| `/start` | Menu utama |
+| `/help` | Panduan lengkap |
+| `/my_wallet` | Lihat alamat & saldo |
+| `/status` | Status semua fitur |
+| `/report` | Laporan harian |
+| `/health` | Health check (RPC, DB, memory) |
+| `/backtest` | Backtest engine |
+| `/withdraw <addr> <amount>` | Withdraw SOL |
+| `/alpha_add <wallet>` | Tambah alpha wallet |
+| `/alpha_remove <wallet>` | Hapus alpha wallet |
+| `/alpha_list` | Daftar alpha wallet |
+| `/rate_stats` | API rate limit stats |
+| `/price_stats` | Price feed stats |
+| `/bt_custom <capital> <risk%> <days> <strategy>` | Custom backtest |
 
-Command	Fungsi
-/start	Menu utama
-/help	Panduan lengkap
-/my_wallet	Lihat alamat & saldo
-/status	Status semua fitur
-/report	Laporan harian
-/health	Health check (RPC, DB, memory)
-/backtest	Backtest engine
-/withdraw <addr> <amount>	Withdraw SOL
-/alpha_add <wallet>	Tambah alpha wallet
-/alpha_remove <wallet>	Hapus alpha wallet
-/alpha_list	Daftar alpha wallet
-/rate_stats	API rate limit stats
-/price_stats	Price feed stats
-/bt_custom <capital> <risk%> <days> <strategy>	Custom backtest
+---
 
-Telegram Menu
+## 📋 Telegram Menu
 
+```
 🍎 KABAYAN AGENT v3.0
 
 ┌──────────────────────┐
@@ -100,83 +113,100 @@ Telegram Menu
 │ 📈 PnL               │ → Laporan PnL harian
 │ ⚙️ Settings          │ → Paper mode, sniper, MEV
 └──────────────────────┘
+```
 
-AI Agent v2.0
+---
 
-Security Gate (8 Checks — ALL must pass)
+## 🤖 AI Agent v2.0
 
-#	Check	Requirement
-1	Mint Authority	MUST be disabled
-2	Freeze Authority	MUST be disabled
-3	Honeypot	Buy+sell simulation must pass, tax < 50%
-4	Top 10 Holders	Must hold < 25% of supply
-5	Bundled Supply	≤5 wallets in block 0
-6	Pool Liquidity	>75 SOL OR >$10,000
-7	Volume/MCap	>0.8
-8	Dev Wallet	Not in blacklist
+### Security Gate (8 Checks — ALL must pass)
 
-SL/TP Engine
+| # | Check | Requirement |
+|---|-------|-------------|
+| 1 | Mint Authority | MUST be disabled |
+| 2 | Freeze Authority | MUST be disabled |
+| 3 | Honeypot | Buy+sell simulation must pass, tax < 50% |
+| 4 | Top 10 Holders | Must hold < 25% of supply |
+| 5 | Bundled Supply | ≤5 wallets in block 0 |
+| 6 | Pool Liquidity | >75 SOL OR >$10,000 |
+| 7 | Volume/MCap | >0.8 |
+| 8 | Dev Wallet | Not in blacklist |
 
-Parameter	Value
-Hard Stop Loss	-20% from entry
-Trailing Delta	21.8%
-Trailing Activation	+20% from entry
-TP1 Target	+77.5% → sell 90%
-Moonbag	10% remaining, exit at -75% from ATH
+### SL/TP Engine
 
-Fee Modes
+| Parameter | Value |
+|-----------|-------|
+| Hard Stop Loss | -20% from entry |
+| Trailing Delta | 21.8% |
+| Trailing Activation | +20% from entry |
+| TP1 Target | +77.5% → sell 90% |
+| Moonbag | 10% remaining, exit at -75% from ATH |
 
-Mode	Condition	Jito Tip	Priority Fee	Slippage
-AGGRESSIVE	Token < 120s / SELL / >10 buy txns	0.01 SOL	0.01 SOL	Buy 25% / Sell 30%
-NORMAL	Volume > 50 SOL/min	0.005 SOL	0.005 SOL	Buy 15% / Sell 15%
-SAFE	Default	0.0001 SOL	0.001 SOL	Buy 10% / Sell 10%
+### Fee Modes
 
-Emergency Overrides
+| Mode | Condition | Jito Tip | Priority Fee | Slippage |
+|------|-----------|----------|--------------|----------|
+| **AGGRESSIVE** | Token < 120s / SELL / >10 buy txns | 0.01 SOL | 0.01 SOL | Buy 25% / Sell 30% |
+| **NORMAL** | Volume > 50 SOL/min | 0.005 SOL | 0.005 SOL | Buy 15% / Sell 15% |
+| **SAFE** | Default | 0.0001 SOL | 0.001 SOL | Buy 10% / Sell 10% |
 
-Trigger	Action
-Pool SOL < 5	SELL 100%
-Deployer removes liquidity	SELL 100%
->3 top holders dump in 1 block	SELL 100%
-Daily PnL ≤ -15%	HALT 24h (circuit breaker)
+### Emergency Overrides
 
-Cooldown Rules
+| Trigger | Action |
+|---------|--------|
+| Pool SOL < 5 | SELL 100% |
+| Deployer removes liquidity | SELL 100% |
+| >3 top holders dump in 1 block | SELL 100% |
+| Daily PnL ≤ -15% | HALT 24h (circuit breaker) |
 
-Event	Wait Time
-After TP exit	2 minutes
-After SL hit	10 minutes
-After rug/emergency	30 minutes
+### Cooldown Rules
 
-Backtest
+| Event | Wait Time |
+|-------|-----------|
+| After TP exit | 2 minutes |
+| After SL hit | 10 minutes |
+| After rug/emergency | 30 minutes |
 
-Preset Strategies
+---
 
-Strategy	Risk	TP1	SL	Trailing	Circuit
-Conservative	1%	+50%	-15%	15%	-10%
-Balanced	2%	+77.5%	-20%	21.8%	-15%
-Aggressive	3%	+100%	-25%	30%	-20%
-Sniper	2.5%	+60%	-15%	25%	-12%
-Diamond Hands	1.5%	+150%	-30%	35%	-20%
+## 📊 Backtest
 
-Cara Pakai
+### Preset Strategies
 
-# Terminal
-npm run backtest                    # Default (balanced)
-npm run backtest:compare            # Bandingkan semua strategi
-npm run backtest:aggressive         # Jalankan aggressive
+| Strategy | Risk | TP1 | SL | Trailing | Circuit |
+|----------|------|-----|----|----------|---------|
+| Conservative | 1% | +50% | -15% | 15% | -10% |
+| Balanced | 2% | +77.5% | -20% | 21.8% | -15% |
+| Aggressive | 3% | +100% | -25% | 30% | -20% |
+| Sniper | 2.5% | +60% | -15% | 25% | -12% |
+| Diamond Hands | 1.5% | +150% | -30% | 35% | -20% |
+
+### Cara Pakai
+
+**Terminal:**
+```bash
+npm run backtest                              # Default (balanced)
+npm run backtest:compare                      # Bandingkan semua strategi
+npm run backtest:aggressive                   # Jalankan aggressive
 npx ts-node src/backtest.ts compare conservative sniper  # Custom compare
+```
 
-# Telegram
-/backtest                           → Pilih mode
-/bt_custom 2 3 14 aggressive       → Custom: 2 SOL, 3% risk, 14 hari
+**Telegram:**
+```
+/backtest                                     → Pilih mode
+/bt_custom 2 3 14 aggressive                  → Custom: 2 SOL, 3% risk, 14 hari
+```
 
-## 📊 Hasil Backtest
+---
+
+## 📈 Hasil Backtest
 
 ### ⭐ Latest Results: 1 Day Test (Balanced Strategy)
 
 > **Test Date**: April 14, 2026  
 > **Configuration**: 1 SOL capital, 5% risk, 35% TP1, 15% SL, 20 tokens/day
 
-#### 📈 Performance Metrics
+#### Performance Metrics
 
 | Metric | Value |
 |--------|-------|
@@ -196,11 +226,11 @@ npx ts-node src/backtest.ts compare conservative sniper  # Custom compare
 | 📈 Sharpe Ratio | 1.10 |
 | 💸 Total Fees | 0.0100 SOL |
 
-✅ **VERDICT: STRATEGY IS PROFITABLE** - EV per trade positif
+✅ **VERDICT: STRATEGY IS PROFITABLE** — EV per trade positif
 
 ---
 
-### 📈 Strategy Comparison (1 Day)
+### Strategy Comparison (1 Day)
 
 | Metric | Conservative | Balanced | Aggressive | **Sniper** 🏆 | Diamond |
 |--------|-------------|----------|------------|---------------|---------|
@@ -216,7 +246,7 @@ npx ts-node src/backtest.ts compare conservative sniper  # Custom compare
 
 ---
 
-### 🏆 Rekomendasi Strategy
+### Rekomendasi Strategy
 
 | Profile | Strategy | Return/Day | Win Rate | Max DD | Risk Level |
 |---------|----------|------------|----------|--------|------------|
@@ -224,7 +254,7 @@ npx ts-node src/backtest.ts compare conservative sniper  # Custom compare
 | **⚖️ Balanced** | Balanced | +16.5% | 58.9% | 3.5% | Medium |
 | **⚡ Aggressive** | Sniper | +91.8% | 51.4% | 10.9% | High |
 
-### 💰 Proyeksi Profit (Balanced Strategy)
+### Proyeksi Profit (Balanced Strategy)
 
 | Modal | 1 Hari | 7 Hari | 30 Hari |
 |-------|--------|--------|---------|
@@ -235,8 +265,11 @@ npx ts-node src/backtest.ts compare conservative sniper  # Custom compare
 
 ⚠️ **Disclaimer**: Hasil backtest adalah simulasi berbasis algoritma random walk. Performa nyata bisa berbeda secara signifikan. Selalu mulai dengan modal kecil dan gunakan paper trading terlebih dahulu.
 
-Arsitektur Flow
+---
 
+## 🏗️ Arsitektur Flow
+
+```
 User (Telegram)
     │
     ▼
@@ -268,7 +301,11 @@ User (Telegram)
                ├─→ Security Filter
                ├─→ Price Simulation
                └─→ Strategy Comparison
+```
 
+### Infrastructure
+
+```
 ┌─────────────────────────────────────────────────────────┐
 │                    INFRASTRUCTURE                        │
 ├─────────────────────────────────────────────────────────┤
@@ -277,9 +314,13 @@ User (Telegram)
 │  Logger (Winston) ← error.log, combined.log             │
 │  Memory (JSON) ← ai_memory.json                         │
 └─────────────────────────────────────────────────────────┘
+```
 
-Dependencies
+---
 
+## 📦 Dependencies
+
+```json
 {
   "dependencies": {
     "@solana/spl-token": "^0.4.0",
@@ -294,6 +335,9 @@ Dependencies
     "ws": "^8.18.0"
   }
 }
+```
+
+---
 
 ## 🔧 Environment Variables
 
@@ -335,4 +379,3 @@ MIT
 ---
 
 **Kabayan Agent v3.0** — Built with ❤️ for Solana traders who stay disciplined
-
