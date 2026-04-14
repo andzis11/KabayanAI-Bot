@@ -99,7 +99,9 @@ function releaseLock() {
   }
 }
 
-let bot: TelegramBot | null = null;
+let bot: TelegramBot = new TelegramBot(ENV.TELEGRAM_BOT_TOKEN, {
+  polling: true,
+});
 const agent = new KabayanAgent(connection, {
   dailyCapital: ENV.DAILY_CAPITAL,
   baseRiskPercent: ENV.BASE_RISK_PERCENT,
@@ -1533,15 +1535,7 @@ async function startup() {
   logger.info("========================================");
   await runPrelaunchCheck();
 
-  // Initialize Telegram bot with polling
-  try {
-    bot = new TelegramBot(ENV.TELEGRAM_BOT_TOKEN, { polling: true });
-    logger.info("[TELEGRAM] Bot initialized successfully");
-  } catch (error: any) {
-    logger.error("[TELEGRAM] Failed to initialize bot: " + error.message);
-    process.exit(1);
-  }
-
+  logger.info("[TELEGRAM] Bot initialized successfully");
   migrateOldData();
   loadMemory();
   const savedPositions = loadPositions();
