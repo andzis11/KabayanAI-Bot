@@ -1,0 +1,42 @@
+{
+  "name": "kabayan-agent",
+  "version": "3.0.0",
+  "description": "AI Trading Bot On-Chain Solana | MEV Bot | AI Agent v2.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "dev": "nodemon --exec ts-node src/index.ts",
+    "migrate": "ts-node src/database/migrate.ts",
+    "test": "jest",
+    "test:cov": "jest --coverage",
+    "setup": "bash setup.sh",
+    "backtest": "ts-node src/backtest.ts",
+    "backtest:compare": "ts-node src/backtest.ts compare",
+    "backtest:aggressive": "ts-node src/backtest.ts single aggressive",
+    "backtest:conservative": "ts-node src/backtest.ts single conservative"
+  },
+  "dependencies": {
+    "@solana/spl-token": "^0.4.0",
+    "@solana/web3.js": "^1.95.0",
+    "axios": "^1.7.0",
+    "better-sqlite3": "^11.0.0",
+    "bs58": "^6.0.0",
+    "dotenv": "^16.4.0",
+    "node-telegram-bot-api": "^0.66.0",
+    "sharp": "^0.33.0",
+    "winston": "^3.13.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^22.0.0",
+    "@types/node-telegram-bot-api": "^0.64.0",
+    "@types/ws": "^8.5.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.0",
+    "ts-jest": "^29.2.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.5.0"
+  }
+}

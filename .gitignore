@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+logs/
+combined.log
+error.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data & Results
+backtest_results/
+*.db
+comparison_results.json
+kabayan.db
+data/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary
+*.swp
+*~
