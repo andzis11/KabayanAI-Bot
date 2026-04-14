@@ -176,54 +176,45 @@ npx ts-node src/backtest.ts compare conservative sniper  # Custom compare
 > **Test Date**: April 14, 2026  
 > **Configuration**: 1 SOL capital, 5% risk, 35% TP1, 15% SL, 20 tokens/day
 
-```
-╔══════════════════════════════════════════════════════╗
-║                                                      ║
-║           🍎 KABAYAN AGENT v3.0 BACKTEST             ║
-║                                                      ║
-╠══════════════════════════════════════════════════════╣
-║  📅 Period         : 1 days × 5min scans             ║
-║  💰 Starting       : 1.0000 SOL                      ║
-║  💰 Ending         : 1.2197 SOL                      ║
-║  📈 Net Return     : +0.2197 SOL (+21.97%)           ║
-╠══════════════════════════════════════════════════════╣
-║  🔄 Total Trades   : 20                              ║
-║  ✅ Wins           : 15                              ║
-║  ❌ Losses         : 5                               ║
-║  📊 Win Rate       : 75.0%                           ║
-╠══════════════════════════════════════════════════════╣
-║  🏆 Avg Win        : +0.0164 SOL                     ║
-║  💀 Avg Loss       : -0.0052 SOL                     ║
-║  📐 EV/Trade       : +0.0110 SOL                     ║
-║  📊 Profit Factor  : 9.53                            ║
-║  📉 Max Drawdown   : 1.06%                           ║
-║  📈 Sharpe Ratio   : 1.10                            ║
-╠══════════════════════════════════════════════════════╣
-║  💸 Total Fees     : 0.0100 SOL                      ║
-╠══════════════════════════════════════════════════════╣
-║  ✅ VERDICT: STRATEGY IS PROFITABLE                  ║
-╚══════════════════════════════════════════════════════╝
-```
+#### 📈 Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+| 📅 Period | 1 days × 5min scans |
+| 💰 Starting Capital | 1.0000 SOL |
+| 💰 Ending Capital | **1.2197 SOL** |
+| 📈 Net Return | **+0.2197 SOL (+21.97%)** |
+| 🔄 Total Trades | 20 |
+| ✅ Wins | 15 |
+| ❌ Losses | 5 |
+| 📊 Win Rate | **75.0%** |
+| 🏆 Avg Win | +0.0164 SOL |
+| 💀 Avg Loss | -0.0052 SOL |
+| 📐 EV/Trade | **+0.0110 SOL** |
+| 📊 Profit Factor | **9.53** |
+| 📉 Max Drawdown | 1.06% |
+| 📈 Sharpe Ratio | 1.10 |
+| 💸 Total Fees | 0.0100 SOL |
+
+✅ **VERDICT: STRATEGY IS PROFITABLE** - EV per trade positif
+
+---
 
 ### 📈 Strategy Comparison (1 Day)
 
-```
-╔══════════════════════════════════════════════════════════════════════════════════╗
-║                        📊 STRATEGY COMPARISON TABLE                              ║
-╠══════════════════════════════════════════════════════════════════════════════════╣
-║  Metric          Conservative  Balanced      Aggressive    Sniper        Diamond ║
-╠══════════════════════════════════════════════════════════════════════════════════╣
-║  Return %        +3.1%         +16.5%        +38.7%        +91.8%        +16.8%  ║
-║  Win Rate        54.3%         58.9%         50.0%         51.4%         39.3%   ║
-║  Profit Factor   1.72          2.17          1.93          2.17          1.68    ║
-║  Max Drawdown    1.6%          3.5%          11.2%         10.9%         6.0%    ║
-║  Sharpe Ratio    0.27          0.35          0.27          0.31          0.25    ║
-║  EV/Trade        +0.0009       +0.0029       +0.0046       +0.0087       +0.0030 ║
-╠══════════════════════════════════════════════════════════════════════════════════╣
-║  🏆 WINNER (by Return): SNIPER STRATEGY                                          ║
-║  🛡️ SAFEST (by Drawdown): CONSERVATIVE                                           ║
-╚══════════════════════════════════════════════════════════════════════════════════╝
-```
+| Metric | Conservative | Balanced | Aggressive | **Sniper** 🏆 | Diamond |
+|--------|-------------|----------|------------|---------------|---------|
+| **Return %** | +3.1% | +16.5% | +38.7% | **+91.8%** | +16.8% |
+| **Win Rate** | 54.3% | 58.9% | 50.0% | 51.4% | 39.3% |
+| **Profit Factor** | 1.72 | 2.17 | 1.93 | 2.17 | 1.68 |
+| **Max Drawdown** | 1.6% | 3.5% | 11.2% | 10.9% | 6.0% |
+| **Sharpe Ratio** | 0.27 | 0.35 | 0.27 | 0.31 | 0.25 |
+| **EV/Trade** | +0.0009 | +0.0029 | +0.0046 | **+0.0087** | +0.0030 |
+
+🏆 **WINNER (by Return)**: SNIPER STRATEGY  
+🛡️ **SAFEST (by Drawdown)**: CONSERVATIVE
+
+---
 
 ### 🏆 Rekomendasi Strategy
 
