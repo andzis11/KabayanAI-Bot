@@ -31,20 +31,27 @@ git clone https://github.com/andzis11/Kabayan-Agent.git
 cd Kabayan-Agent
 ```
 
-### 2. Setup
+### 2. Install Node.js
 
-**Linux/Mac:**
+Jika belum punya Node.js, install **versi 20 LTS**:
+
+- Download: https://nodejs.org/
+- Atau via terminal (Linux):
+  ```bash
+  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  sudo apt install -y nodejs
+  ```
+
+### 3. Setup Project
+
+Jalankan wizard setup (works on **Linux, Mac, Windows**):
+
 ```bash
-chmod +x setup.sh
-bash setup.sh
+npm install
+npm run setup
 ```
 
-**Windows:**
-```powershell
-powershell -ExecutionPolicy Bypass -File setup.ps1
-```
-
-Setup wizard akan memandu kamu mengisi:
+Wizard akan memandu kamu mengisi:
 - **Telegram Bot Token** (dari [@BotFather](https://t.me/BotFather))
 - **Chat ID** (dari [@userinfobot](https://t.me/userinfobot))
 - **Solana Private Key** (Base58, wallet khusus trading!)
@@ -53,7 +60,7 @@ Setup wizard akan memandu kamu mengisi:
 - **Jito API Key** (untuk MEV bot)
 - **Trading settings** (daily capital, risk %)
 
-### 3. Jalankan
+### 4. Jalankan
 
 **Development:**
 ```bash
@@ -63,12 +70,15 @@ npm start
 **Production:**
 ```bash
 npm run build
-npm install -g pm2
+npm run start:prod
+
+# Atau pakai PM2 (Linux/Mac)
+sudo npm install -g pm2
 pm2 start ecosystem.config.js
 pm2 logs kabayan-agent
 ```
 
-### 4. Buka Telegram
+### 5. Buka Telegram
 
 Kirim `/start` ke bot kamu.
 
