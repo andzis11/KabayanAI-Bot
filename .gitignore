@@ -12,11 +12,15 @@ error.log
 .env.local
 .env.*.local
 
+# Build output
+dist/
+
 # Data & Results
 backtest_results/
 *.db
 comparison_results.json
 kabayan.db
+backtest_results.json
 /data/
 
 # VS Code
