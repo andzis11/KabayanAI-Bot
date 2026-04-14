@@ -1,9 +1,9 @@
-import WebSocket from 'ws';
-import { Connection, PublicKey } from '@solana/web3.js';
-import { logger } from '../utils/logger';
-import { scanArbitrage, executeArbitrage } from './arbitrage';
-import { executeSandwich } from './sandwich';
-import { wallet } from '../config/wallet';
+import WebSocket from "ws";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { logger } from "../utils/logger";
+import { scanArbitrage, executeArbitrage } from "./arbitrage";
+import { executeSandwich } from "./sandwich";
+import { wallet } from "../config/wallet";
 
 interface MEVState {
   sandwichEnabled: boolean;
@@ -36,14 +36,19 @@ let mevConfig: MEVConfig = {
   minTargetSizeSol: 0.5,
   maxSlippage: 10,
   tipLamports: 10000,
-  jitoApiKey: '',
+  jitoApiKey: "",
   minSpreadPercent: 2,
   tradeAmountSol: 0.1,
 };
 
 let connection: Connection | null = null;
+let activeWs: WebSocket | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
-export function configureMEV(conn: Connection, config: Partial<MEVConfig>): void {
+export function configureMEV(
+  conn: Connection,
+  config: Partial<MEVConfig>,
+): void {
   connection = conn;
   mevConfig = { ...mevConfig, ...config };
 }
@@ -52,24 +57,29 @@ export function configureMEV(conn: Connection, config: Partial<MEVConfig>): void
 const recentTargets: Map<string, number> = new Map();
 const TARGET_COOLDOWN_MS = 30_000;
 
-function parseSwapFromTx(tx: any): { mint: string; amountSol: number; poolAddress: string; signature: string } | null {
+function parseSwapFromTx(tx: any): {
+  mint: string;
+  amountSol: number;
+  poolAddress: string;
+  signature: string;
+} | null {
   try {
     const instructions = tx?.transaction?.message?.instructions || [];
     const pre = tx?.meta?.preBalances || [];
     const post = tx?.meta?.postBalances || [];
-    const sig = tx?.transaction?.signatures?.[0] || '';
+    const sig = tx?.transaction?.signatures?.[0] || "";
 
     // Cari program Jupiter atau Raydium
-    const JUP = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4';
-    const RAY = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
+    const JUP = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
+    const RAY = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
 
     let isSwap = false;
-    let poolAddress = '';
+    let poolAddress = "";
 
     for (const ix of instructions) {
       if (ix?.programId === JUP || ix?.programId === RAY) {
         isSwap = true;
-        poolAddress = ix.accounts?.[0] || '';
+        poolAddress = ix.accounts?.[0] || "";
         break;
       }
     }
@@ -87,7 +97,7 @@ function parseSwapFromTx(tx: any): { mint: string; amountSol: number; poolAddres
 
     // Ambil mint dari token balances
     const postTB = tx?.meta?.postTokenBalances || [];
-    const mint = postTB[0]?.mint || '';
+    const mint = postTB[0]?.mint || "";
     if (!mint) return null;
 
     return { mint, amountSol: maxChange, poolAddress, signature: sig };
@@ -97,24 +107,38 @@ function parseSwapFromTx(tx: any): { mint: string; amountSol: number; poolAddres
 }
 
 export function startMempoolScanner(url: string): WebSocket {
-  const ws = new WebSocket(url);
+  // Clear any pending reconnect timer
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
 
-  ws.on('open', () => {
-    logger.info('[MEV] Scanner connected');
+  // Close and clean up existing WebSocket
+  if (activeWs) {
+    activeWs.removeAllListeners();
+    activeWs.close();
+    activeWs = null;
+  }
+
+  const ws = new WebSocket(url);
+  activeWs = ws;
+
+  ws.on("open", () => {
+    logger.info("[MEV] Scanner connected");
     ws.send(
       JSON.stringify({
-        jsonrpc: '2.0',
+        jsonrpc: "2.0",
         id: 1,
-        method: 'transactionSubscribe',
+        method: "transactionSubscribe",
         params: [
           { vote: false, failed: false },
-          { commitment: 'processed', encoding: 'jsonParsed' },
+          { commitment: "processed", encoding: "jsonParsed" },
         ],
-      })
+      }),
     );
   });
 
-  ws.on('message', async (data: string) => {
+  ws.on("message", async (data: string) => {
     try {
       const p = JSON.parse(data);
       const tx = p?.params?.result?.transaction;
@@ -123,7 +147,9 @@ export function startMempoolScanner(url: string): WebSocket {
       const swap = parseSwapFromTx(tx);
       if (!swap) return;
 
-      logger.info(`[MEV] Large swap detected: ${swap.amountSol.toFixed(2)} SOL | ${swap.mint.slice(0, 8)}...`);
+      logger.info(
+        `[MEV] Large swap detected: ${swap.amountSol.toFixed(2)} SOL | ${swap.mint.slice(0, 8)}...`,
+      );
       state.lastActivity = Date.now();
 
       // Throttle: skip jika baru saja proses target ini
@@ -135,18 +161,25 @@ export function startMempoolScanner(url: string): WebSocket {
       if (state.sandwichEnabled && mevConfig.jitoApiKey) {
         const sandwichSuccess = await executeSandwich(
           connection,
-          { signature: swap.signature, mint: swap.mint, amountSol: swap.amountSol, poolAddress: swap.poolAddress },
+          {
+            signature: swap.signature,
+            mint: swap.mint,
+            amountSol: swap.amountSol,
+            poolAddress: swap.poolAddress,
+          },
           wallet.publicKey,
           {
             minTargetSizeSol: mevConfig.minTargetSizeSol,
             maxSlippage: mevConfig.maxSlippage,
             tipLamports: mevConfig.tipLamports,
             jitoApiKey: mevConfig.jitoApiKey,
-          }
+          },
         );
         if (sandwichSuccess) {
           state.totalSandwiches++;
-          logger.info('[MEV] Sandwich #' + state.totalSandwiches + ' completed');
+          logger.info(
+            "[MEV] Sandwich #" + state.totalSandwiches + " completed",
+          );
         }
         return; // Tidak run arb setelah sandwich attempt
       }
@@ -164,26 +197,33 @@ export function startMempoolScanner(url: string): WebSocket {
               tradeAmountSol: mevConfig.tradeAmountSol,
               tipLamports: mevConfig.tipLamports,
               jitoApiKey: mevConfig.jitoApiKey,
-            }
+            },
           );
           if (arbSuccess) {
             state.totalArbitrages++;
-            logger.info('[MEV] Arbitrage #' + state.totalArbitrages + ' completed');
+            logger.info(
+              "[MEV] Arbitrage #" + state.totalArbitrages + " completed",
+            );
           }
         }
       }
     } catch (e: any) {
-      logger.warn('[MEV] Message parse error: ' + e.message);
+      logger.warn("[MEV] Message parse error: " + e.message);
     }
   });
 
-  ws.on('error', (err: Error) => {
-    logger.error('[MEV] Error: ' + err.message);
+  ws.on("error", (err: Error) => {
+    logger.error("[MEV] Error: " + err.message);
   });
 
-  ws.on('close', () => {
-    logger.warn('[MEV] Reconnecting in 5s');
-    setTimeout(() => startMempoolScanner(url), 5000);
+  ws.on("close", () => {
+    logger.warn("[MEV] Reconnecting in 5s");
+    // Clear the old ws reference before creating a new one
+    activeWs = null;
+    ws.removeAllListeners();
+    reconnectTimer = setTimeout(() => {
+      startMempoolScanner(url);
+    }, 5000);
   });
 
   return ws;
@@ -195,10 +235,10 @@ export function getMEVState(): MEVState {
 
 export function setMEVSandwich(on: boolean): void {
   state.sandwichEnabled = on;
-  logger.info('[MEV] Sandwich: ' + (on ? 'ON' : 'OFF'));
+  logger.info("[MEV] Sandwich: " + (on ? "ON" : "OFF"));
 }
 
 export function setMEVArbitrage(on: boolean): void {
   state.arbitrageEnabled = on;
-  logger.info('[MEV] Arbitrage: ' + (on ? 'ON' : 'OFF'));
+  logger.info("[MEV] Arbitrage: " + (on ? "ON" : "OFF"));
 }

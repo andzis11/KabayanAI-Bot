@@ -353,12 +353,40 @@ bot.onText(/\/withdraw (.+)/, async (msg, match) => {
         return;
     }
     const address = args[0];
-    const amount = args[1];
+    const amountStr = args[1];
+    const amount = parseFloat(amountStr);
+    // Validate amount is a positive number
+    if (amount <= 0 || isNaN(amount)) {
+        await bot.sendMessage(msg.chat.id, "\u274c Invalid amount. Must be a positive number.");
+        return;
+    }
+    // Validate recipient address is a valid Solana public key
+    const { PublicKey } = await Promise.resolve().then(() => __importStar(require("@solana/web3.js")));
+    try {
+        new PublicKey(address);
+    }
+    catch {
+        await bot.sendMessage(msg.chat.id, "\u274c Invalid Solana address.");
+        return;
+    }
+    // Check wallet balance and ensure minimum reserve is kept
+    const balance = await (0, wallet_1.getBalance)();
+    const minReserve = 0.001;
+    if (amount > balance - minReserve) {
+        await bot.sendMessage(msg.chat.id, "\u274c Insufficient balance. Must keep minimum reserve of " +
+            minReserve +
+            " SOL. Balance: " +
+            balance.toFixed(4) +
+            " SOL");
+        return;
+    }
     // Ask for confirmation
     const confirmMsg = await bot.sendMessage(msg.chat.id, "\u26a0\ufe0f CONFIRM WITHDRAWAL\nTo: " +
         address +
         "\nAmount: " +
-        amount +
+        amount.toFixed(4) +
+        " SOL\nBalance: " +
+        balance.toFixed(4) +
         " SOL\n\nReply YES to confirm (within 30s)");
     // Wait for user confirmation with timeout
     const confirmed = await new Promise((resolve) => {
@@ -385,14 +413,14 @@ bot.onText(/\/withdraw (.+)/, async (msg, match) => {
         return;
     }
     try {
-        const { SystemProgram, PublicKey, Transaction, sendAndConfirmTransaction, LAMPORTS_PER_SOL, } = await Promise.resolve().then(() => __importStar(require("@solana/web3.js")));
+        const { SystemProgram, Transaction, sendAndConfirmTransaction, LAMPORTS_PER_SOL, } = await Promise.resolve().then(() => __importStar(require("@solana/web3.js")));
         const tx = new Transaction().add(SystemProgram.transfer({
             fromPubkey: wallet_1.walletPubkey,
             toPubkey: new PublicKey(address),
-            lamports: Math.round(parseFloat(amount) * LAMPORTS_PER_SOL),
+            lamports: Math.round(amount * LAMPORTS_PER_SOL),
         }));
         const sig = await sendAndConfirmTransaction(wallet_1.connection, tx, [wallet_1.wallet]);
-        await bot.sendMessage(msg.chat.id, "Withdraw: " + amount + " SOL\nTX: " + sig);
+        await bot.sendMessage(msg.chat.id, "Withdraw: " + amount.toFixed(4) + " SOL\nTX: " + sig);
     }
     catch (e) {
         await bot.sendMessage(msg.chat.id, "Error: " + e.message);
@@ -1221,16 +1249,12 @@ function startAlphaTracking() {
     });
 }
 async function monitorLoop() {
-    if (monitorRunning) {
-        setTimeout(monitorLoop, agent.getConfig().monitoringIntervalMs);
+    if (monitorRunning)
         return;
-    }
     monitorRunning = true;
     try {
         const state = agent.getState();
         if (state.positions.length === 0) {
-            monitorRunning = false;
-            setTimeout(monitorLoop, agent.getConfig().monitoringIntervalMs);
             return;
         }
         await priceFeed.warmCache(state.positions.map((p) => p.tokenMint));
@@ -1282,9 +1306,24 @@ async function executeSell(pos, output) {
         }
         return;
     }
+    // Calculate actual PnL before executing the swap
+    const pr = await priceFeed.getPrice(pos.tokenMint);
+    const pnl = pr && pos.entryPrice > 0
+        ? pos.amountSol *
+            output.persentase *
+            ((pr.price - pos.entryPrice) / pos.entryPrice)
+        : 0;
+    logger_1.logger.info("[SELL] PnL: " +
+        (pnl >= 0 ? "+" : "") +
+        pnl.toFixed(4) +
+        " SOL | " +
+        pos.tokenMint.slice(0, 8) +
+        "... | " +
+        (output.persentase * 100).toFixed(0) +
+        "%");
     const r = await (0, swap_1.executeSwap)(wallet_1.connection, pos.tokenMint, "SOL", output.persentase * 100, fee.slippageSell, { maxRetries: 3, skipPreflight: true });
     if (r.success) {
-        agent.closePosition(pos.tokenMint, 0, output.alasan);
+        agent.closePosition(pos.tokenMint, pnl, output.alasan);
         priceFeed.removeToken(pos.tokenMint);
         if (env_1.ENV.CHAT_ID) {
             await bot.sendMessage(env_1.ENV.CHAT_ID, output.alasan +
@@ -1292,7 +1331,10 @@ async function executeSell(pos, output) {
                 pos.tokenMint.slice(0, 8) +
                 "...\nSold: " +
                 (output.persentase * 100).toFixed(0) +
-                "%\nTX: " +
+                "%\nPnL: " +
+                (pnl >= 0 ? "+" : "") +
+                pnl.toFixed(4) +
+                " SOL\nTX: " +
                 r.txHash);
         }
     }
@@ -1358,7 +1400,9 @@ process.on("uncaughtException", (err) => {
     shutdown("uncaughtException");
 });
 process.on("unhandledRejection", (reason) => {
-    logger_1.logger.error("[FATAL] Rejection: " + (reason?.message || reason));
+    const message = reason instanceof Error ? reason.stack : String(reason);
+    logger_1.logger.error("[FATAL] Unhandled Rejection: " + message);
+    shutdown("unhandledRejection");
 });
 async function startup() {
     // Acquire instance lock to prevent duplicate instances

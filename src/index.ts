@@ -379,7 +379,41 @@ bot.onText(/\/withdraw (.+)/, async (msg: any, match: any) => {
     return;
   }
   const address = args[0];
-  const amount = args[1];
+  const amountStr = args[1];
+  const amount = parseFloat(amountStr);
+
+  // Validate amount is a positive number
+  if (amount <= 0 || isNaN(amount)) {
+    await bot.sendMessage(
+      msg.chat.id,
+      "\u274c Invalid amount. Must be a positive number.",
+    );
+    return;
+  }
+
+  // Validate recipient address is a valid Solana public key
+  const { PublicKey } = await import("@solana/web3.js");
+  try {
+    new PublicKey(address);
+  } catch {
+    await bot.sendMessage(msg.chat.id, "\u274c Invalid Solana address.");
+    return;
+  }
+
+  // Check wallet balance and ensure minimum reserve is kept
+  const balance = await getBalance();
+  const minReserve = 0.001;
+  if (amount > balance - minReserve) {
+    await bot.sendMessage(
+      msg.chat.id,
+      "\u274c Insufficient balance. Must keep minimum reserve of " +
+        minReserve +
+        " SOL. Balance: " +
+        balance.toFixed(4) +
+        " SOL",
+    );
+    return;
+  }
 
   // Ask for confirmation
   const confirmMsg = await bot.sendMessage(
@@ -387,7 +421,9 @@ bot.onText(/\/withdraw (.+)/, async (msg: any, match: any) => {
     "\u26a0\ufe0f CONFIRM WITHDRAWAL\nTo: " +
       address +
       "\nAmount: " +
-      amount +
+      amount.toFixed(4) +
+      " SOL\nBalance: " +
+      balance.toFixed(4) +
       " SOL\n\nReply YES to confirm (within 30s)",
   );
 
@@ -419,7 +455,6 @@ bot.onText(/\/withdraw (.+)/, async (msg: any, match: any) => {
   try {
     const {
       SystemProgram,
-      PublicKey,
       Transaction,
       sendAndConfirmTransaction,
       LAMPORTS_PER_SOL,
@@ -428,13 +463,13 @@ bot.onText(/\/withdraw (.+)/, async (msg: any, match: any) => {
       SystemProgram.transfer({
         fromPubkey: walletPubkey,
         toPubkey: new PublicKey(address),
-        lamports: Math.round(parseFloat(amount) * LAMPORTS_PER_SOL),
+        lamports: Math.round(amount * LAMPORTS_PER_SOL),
       }),
     );
     const sig = await sendAndConfirmTransaction(connection, tx, [wallet]);
     await bot.sendMessage(
       msg.chat.id,
-      "Withdraw: " + amount + " SOL\nTX: " + sig,
+      "Withdraw: " + amount.toFixed(4) + " SOL\nTX: " + sig,
     );
   } catch (e: any) {
     await bot.sendMessage(msg.chat.id, "Error: " + e.message);
@@ -1471,16 +1506,11 @@ function startAlphaTracking() {
 }
 
 async function monitorLoop() {
-  if (monitorRunning) {
-    setTimeout(monitorLoop, agent.getConfig().monitoringIntervalMs);
-    return;
-  }
+  if (monitorRunning) return;
   monitorRunning = true;
   try {
     const state = agent.getState();
     if (state.positions.length === 0) {
-      monitorRunning = false;
-      setTimeout(monitorLoop, agent.getConfig().monitoringIntervalMs);
       return;
     }
     await priceFeed.warmCache(state.positions.map((p) => p.tokenMint));
@@ -1534,6 +1564,24 @@ async function executeSell(pos: Position, output: AIOutput) {
     }
     return;
   }
+  // Calculate actual PnL before executing the swap
+  const pr = await priceFeed.getPrice(pos.tokenMint);
+  const pnl =
+    pr && pos.entryPrice > 0
+      ? pos.amountSol *
+        output.persentase *
+        ((pr.price - pos.entryPrice) / pos.entryPrice)
+      : 0;
+  logger.info(
+    "[SELL] PnL: " +
+      (pnl >= 0 ? "+" : "") +
+      pnl.toFixed(4) +
+      " SOL | " +
+      pos.tokenMint.slice(0, 8) +
+      "... | " +
+      (output.persentase * 100).toFixed(0) +
+      "%",
+  );
   const r = await executeSwap(
     connection,
     pos.tokenMint,
@@ -1543,7 +1591,7 @@ async function executeSell(pos: Position, output: AIOutput) {
     { maxRetries: 3, skipPreflight: true },
   );
   if (r.success) {
-    agent.closePosition(pos.tokenMint, 0, output.alasan);
+    agent.closePosition(pos.tokenMint, pnl, output.alasan);
     priceFeed.removeToken(pos.tokenMint);
     if (ENV.CHAT_ID) {
       await bot.sendMessage(
@@ -1553,7 +1601,10 @@ async function executeSell(pos: Position, output: AIOutput) {
           pos.tokenMint.slice(0, 8) +
           "...\nSold: " +
           (output.persentase * 100).toFixed(0) +
-          "%\nTX: " +
+          "%\nPnL: " +
+          (pnl >= 0 ? "+" : "") +
+          pnl.toFixed(4) +
+          " SOL\nTX: " +
           r.txHash,
       );
     }
@@ -1623,7 +1674,9 @@ process.on("uncaughtException", (err: Error) => {
   shutdown("uncaughtException");
 });
 process.on("unhandledRejection", (reason: any) => {
-  logger.error("[FATAL] Rejection: " + (reason?.message || reason));
+  const message = reason instanceof Error ? reason.stack : String(reason);
+  logger.error("[FATAL] Unhandled Rejection: " + message);
+  shutdown("unhandledRejection");
 });
 
 async function startup() {

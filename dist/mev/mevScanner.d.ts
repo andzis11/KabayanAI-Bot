@@ -1,5 +1,5 @@
-import WebSocket from 'ws';
-import { Connection } from '@solana/web3.js';
+import WebSocket from "ws";
+import { Connection } from "@solana/web3.js";
 interface MEVState {
     sandwichEnabled: boolean;
     arbitrageEnabled: boolean;

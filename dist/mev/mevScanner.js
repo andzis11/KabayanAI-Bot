@@ -25,11 +25,13 @@ let mevConfig = {
     minTargetSizeSol: 0.5,
     maxSlippage: 10,
     tipLamports: 10000,
-    jitoApiKey: '',
+    jitoApiKey: "",
     minSpreadPercent: 2,
     tradeAmountSol: 0.1,
 };
 let connection = null;
+let activeWs = null;
+let reconnectTimer = null;
 function configureMEV(conn, config) {
     connection = conn;
     mevConfig = { ...mevConfig, ...config };
@@ -42,16 +44,16 @@ function parseSwapFromTx(tx) {
         const instructions = tx?.transaction?.message?.instructions || [];
         const pre = tx?.meta?.preBalances || [];
         const post = tx?.meta?.postBalances || [];
-        const sig = tx?.transaction?.signatures?.[0] || '';
+        const sig = tx?.transaction?.signatures?.[0] || "";
         // Cari program Jupiter atau Raydium
-        const JUP = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4';
-        const RAY = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
+        const JUP = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
+        const RAY = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
         let isSwap = false;
-        let poolAddress = '';
+        let poolAddress = "";
         for (const ix of instructions) {
             if (ix?.programId === JUP || ix?.programId === RAY) {
                 isSwap = true;
-                poolAddress = ix.accounts?.[0] || '';
+                poolAddress = ix.accounts?.[0] || "";
                 break;
             }
         }
@@ -68,7 +70,7 @@ function parseSwapFromTx(tx) {
             return null;
         // Ambil mint dari token balances
         const postTB = tx?.meta?.postTokenBalances || [];
-        const mint = postTB[0]?.mint || '';
+        const mint = postTB[0]?.mint || "";
         if (!mint)
             return null;
         return { mint, amountSol: maxChange, poolAddress, signature: sig };
@@ -78,20 +80,32 @@ function parseSwapFromTx(tx) {
     }
 }
 function startMempoolScanner(url) {
+    // Clear any pending reconnect timer
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
+    // Close and clean up existing WebSocket
+    if (activeWs) {
+        activeWs.removeAllListeners();
+        activeWs.close();
+        activeWs = null;
+    }
     const ws = new ws_1.default(url);
-    ws.on('open', () => {
-        logger_1.logger.info('[MEV] Scanner connected');
+    activeWs = ws;
+    ws.on("open", () => {
+        logger_1.logger.info("[MEV] Scanner connected");
         ws.send(JSON.stringify({
-            jsonrpc: '2.0',
+            jsonrpc: "2.0",
             id: 1,
-            method: 'transactionSubscribe',
+            method: "transactionSubscribe",
             params: [
                 { vote: false, failed: false },
-                { commitment: 'processed', encoding: 'jsonParsed' },
+                { commitment: "processed", encoding: "jsonParsed" },
             ],
         }));
     });
-    ws.on('message', async (data) => {
+    ws.on("message", async (data) => {
         try {
             const p = JSON.parse(data);
             const tx = p?.params?.result?.transaction;
@@ -109,7 +123,12 @@ function startMempoolScanner(url) {
             recentTargets.set(swap.mint, Date.now());
             // Sandwich Attack
             if (state.sandwichEnabled && mevConfig.jitoApiKey) {
-                const sandwichSuccess = await (0, sandwich_1.executeSandwich)(connection, { signature: swap.signature, mint: swap.mint, amountSol: swap.amountSol, poolAddress: swap.poolAddress }, wallet_1.wallet.publicKey, {
+                const sandwichSuccess = await (0, sandwich_1.executeSandwich)(connection, {
+                    signature: swap.signature,
+                    mint: swap.mint,
+                    amountSol: swap.amountSol,
+                    poolAddress: swap.poolAddress,
+                }, wallet_1.wallet.publicKey, {
                     minTargetSizeSol: mevConfig.minTargetSizeSol,
                     maxSlippage: mevConfig.maxSlippage,
                     tipLamports: mevConfig.tipLamports,
@@ -117,7 +136,7 @@ function startMempoolScanner(url) {
                 });
                 if (sandwichSuccess) {
                     state.totalSandwiches++;
-                    logger_1.logger.info('[MEV] Sandwich #' + state.totalSandwiches + ' completed');
+                    logger_1.logger.info("[MEV] Sandwich #" + state.totalSandwiches + " completed");
                 }
                 return; // Tidak run arb setelah sandwich attempt
             }
@@ -133,21 +152,26 @@ function startMempoolScanner(url) {
                     });
                     if (arbSuccess) {
                         state.totalArbitrages++;
-                        logger_1.logger.info('[MEV] Arbitrage #' + state.totalArbitrages + ' completed');
+                        logger_1.logger.info("[MEV] Arbitrage #" + state.totalArbitrages + " completed");
                     }
                 }
             }
         }
         catch (e) {
-            logger_1.logger.warn('[MEV] Message parse error: ' + e.message);
+            logger_1.logger.warn("[MEV] Message parse error: " + e.message);
         }
     });
-    ws.on('error', (err) => {
-        logger_1.logger.error('[MEV] Error: ' + err.message);
+    ws.on("error", (err) => {
+        logger_1.logger.error("[MEV] Error: " + err.message);
     });
-    ws.on('close', () => {
-        logger_1.logger.warn('[MEV] Reconnecting in 5s');
-        setTimeout(() => startMempoolScanner(url), 5000);
+    ws.on("close", () => {
+        logger_1.logger.warn("[MEV] Reconnecting in 5s");
+        // Clear the old ws reference before creating a new one
+        activeWs = null;
+        ws.removeAllListeners();
+        reconnectTimer = setTimeout(() => {
+            startMempoolScanner(url);
+        }, 5000);
     });
     return ws;
 }
@@ -156,10 +180,10 @@ function getMEVState() {
 }
 function setMEVSandwich(on) {
     state.sandwichEnabled = on;
-    logger_1.logger.info('[MEV] Sandwich: ' + (on ? 'ON' : 'OFF'));
+    logger_1.logger.info("[MEV] Sandwich: " + (on ? "ON" : "OFF"));
 }
 function setMEVArbitrage(on) {
     state.arbitrageEnabled = on;
-    logger_1.logger.info('[MEV] Arbitrage: ' + (on ? 'ON' : 'OFF'));
+    logger_1.logger.info("[MEV] Arbitrage: " + (on ? "ON" : "OFF"));
 }
 //# sourceMappingURL=mevScanner.js.map
