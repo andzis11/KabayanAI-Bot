@@ -1,4 +1,4 @@
-import { Connection } from "@solana/web3.js";
+type Connection = unknown;
 import { logger } from "../utils/logger";
 import { checkRugCheck } from "../data/rugcheck";
 import { checkGoPlus } from "../data/security";

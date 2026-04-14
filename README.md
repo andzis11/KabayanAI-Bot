@@ -1,384 +1,242 @@
 # 🍎 Kabayan Agent v3.0
 
-> AI Trading Bot On-Chain Solana | MEV Bot | AI Agent v2.0
+> AI Trading Bot On-Chain Solana | MEV Bot | Telegram Agent
 
 ---
 
-## ✨ Fitur
+## ✨ Fitur Utama
 
 | Kategori | Fitur |
 |----------|-------|
 | **Trading** | Buy/Sell Manual, Paper Trading |
-| **AI Agent v2.0** | 8-layer security gate, SL/TP engine, trailing stop, position sizing |
-| **AI Sniper** | Auto-scan Pump.fun, deep honeypot check, auto buy |
-| **MEV Bot** | Sandwich attack, Arbitrage, Jito bundle |
-| **Alpha Tracking** | Real-time alpha wallet monitoring |
-| **Backtest** | 5 preset strategies, strategy comparison, custom config |
-| **Risk Management** | Circuit breaker, cooldown rules, emergency overrides |
-| **Infrastructure** | WebSocket price feed, per-endpoint rate limiting, retry logic |
-| **Database** | SQLite (WAL mode), position recovery, daily state persistence |
-| **Monitoring** | Health check, daily report, PnL card |
-| **Setup** | Setup wizard (Linux/Mac/Windows), full .env validation |
+| **AI Agent** | Security gate, SL/TP engine, trailing stop, position sizing |
+| **AI Sniper** | Auto-scan token source, honeypot check, auto buy |
+| **MEV Bot** | Sandwich + Arbitrage module (opsional) |
+| **Alpha Tracking** | Monitoring alpha wallet real-time |
+| **Backtest** | Preset strategy, compare strategy, custom run |
+| **Risk Management** | Circuit breaker, cooldown rule, emergency exit |
+| **Infrastructure** | Rate limiter, retry logic, health check |
+| **Database** | SQLite (WAL), position recovery, daily state |
+| **Monitoring** | Daily report, PnL summary, health endpoint |
+| **Setup** | Setup wizard Node.js + validasi `.env` |
+
+---
+
+## ✅ Requirements
+
+- **Node.js >= 20**
+- npm (ikut terpasang bersama Node.js)
+- OS: Linux / macOS / Windows
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Clone Repository
+### 1) Clone repository
 
 ```bash
 git clone https://github.com/andzis11/Kabayan-Agent.git
 cd Kabayan-Agent
 ```
 
-### 2. Install Node.js
-
-Jika belum punya Node.js, install **versi 20 LTS**:
-
-- Download: https://nodejs.org/
-- Atau via terminal (Linux):
-  ```bash
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-  sudo apt install -y nodejs
-  ```
-
-### 3. Setup Project
-
-Jalankan wizard setup (works on **Linux, Mac, Windows**):
+### 2) Install dependency
 
 ```bash
 npm install
+```
+
+### 3) Setup environment
+
+Paling mudah:
+
+```bash
 npm run setup
 ```
 
-Wizard akan memandu kamu mengisi:
-- **Telegram Bot Token** (dari [@BotFather](https://t.me/BotFather))
-- **Chat ID** (dari [@userinfobot](https://t.me/userinfobot))
-- **Solana Private Key** (Base58, wallet khusus trading!)
-- **Helius API Key** ([dev.helius.xyz](https://dev.helius.xyz))
-- **AI Provider keys** (Groq, Anthropic, OpenAI — minimal satu)
-- **Jito API Key** (untuk MEV bot)
-- **Trading settings** (daily capital, risk %)
+Atau manual:
 
-### 4. Jalankan
+1. Copy `env.template` menjadi `.env`
+2. Isi variable wajib
 
-**Development:**
+### 4) Jalankan bot
+
+**Development**
+
+```bash
+npm run dev
+```
+
+**Run biasa (ts-node)**
+
 ```bash
 npm start
 ```
 
-**Production:**
+**Production**
+
 ```bash
 npm run build
 npm run start:prod
+```
 
-# Atau pakai PM2 (Linux/Mac)
-sudo npm install -g pm2
+**PM2 (opsional)**
+
+```bash
 pm2 start ecosystem.config.js
 pm2 logs kabayan-agent
-```
-
-### 5. Buka Telegram
-
-Kirim `/start` ke bot kamu.
-
----
-
-## 📱 Commands
-
-| Command | Fungsi |
-|---------|--------|
-| `/start` | Menu utama |
-| `/help` | Panduan lengkap |
-| `/my_wallet` | Lihat alamat & saldo |
-| `/status` | Status semua fitur |
-| `/report` | Laporan harian |
-| `/health` | Health check (RPC, DB, memory) |
-| `/backtest` | Backtest engine |
-| `/withdraw <addr> <amount>` | Withdraw SOL |
-| `/alpha_add <wallet>` | Tambah alpha wallet |
-| `/alpha_remove <wallet>` | Hapus alpha wallet |
-| `/alpha_list` | Daftar alpha wallet |
-| `/rate_stats` | API rate limit stats |
-| `/price_stats` | Price feed stats |
-| `/bt_custom <capital> <risk%> <days> <strategy>` | Custom backtest |
-
----
-
-## 📋 Telegram Menu
-
-```
-🍎 KABAYAN AGENT v3.0
-
-┌──────────────────────┐
-│ 🟢 Buy Manual        │ → Minta CA → Security Gate → Eksekusi
-│ 🔴 Sell Manual       │ → Pilih token → Eksekusi
-│ 🤖 AI Agent Status   │ → Status agent (PnL, positions, circuit breaker)
-│ 🚀 Activate AI Sniper│ → Toggle ON/OFF Pump.fun scanner
-│ ⚡ MEV Bot           │ → Sandwich / Arbitrage / Status
-│ 🔬 Backtest          │ → Single / Compare / Custom
-│ 📊 Portfolio         │ → Semua posisi aktif
-│ 📥 Deposit           │ → Tampilkan wallet address
-│ 📤 Withdraw          │ → Petunjuk withdraw
-│ 📈 PnL               │ → Laporan PnL harian
-│ ⚙️ Settings          │ → Paper mode, sniper, MEV
-└──────────────────────┘
-```
-
----
-
-## 🤖 AI Agent v2.0
-
-### Security Gate (8 Checks — ALL must pass)
-
-| # | Check | Requirement |
-|---|-------|-------------|
-| 1 | Mint Authority | MUST be disabled |
-| 2 | Freeze Authority | MUST be disabled |
-| 3 | Honeypot | Buy+sell simulation must pass, tax < 50% |
-| 4 | Top 10 Holders | Must hold < 25% of supply |
-| 5 | Bundled Supply | ≤5 wallets in block 0 |
-| 6 | Pool Liquidity | >75 SOL OR >$10,000 |
-| 7 | Volume/MCap | >0.8 |
-| 8 | Dev Wallet | Not in blacklist |
-
-### SL/TP Engine
-
-| Parameter | Value |
-|-----------|-------|
-| Hard Stop Loss | -20% from entry |
-| Trailing Delta | 21.8% |
-| Trailing Activation | +20% from entry |
-| TP1 Target | +77.5% → sell 90% |
-| Moonbag | 10% remaining, exit at -75% from ATH |
-
-### Fee Modes
-
-| Mode | Condition | Jito Tip | Priority Fee | Slippage |
-|------|-----------|----------|--------------|----------|
-| **AGGRESSIVE** | Token < 120s / SELL / >10 buy txns | 0.01 SOL | 0.01 SOL | Buy 25% / Sell 30% |
-| **NORMAL** | Volume > 50 SOL/min | 0.005 SOL | 0.005 SOL | Buy 15% / Sell 15% |
-| **SAFE** | Default | 0.0001 SOL | 0.001 SOL | Buy 10% / Sell 10% |
-
-### Emergency Overrides
-
-| Trigger | Action |
-|---------|--------|
-| Pool SOL < 5 | SELL 100% |
-| Deployer removes liquidity | SELL 100% |
-| >3 top holders dump in 1 block | SELL 100% |
-| Daily PnL ≤ -15% | HALT 24h (circuit breaker) |
-
-### Cooldown Rules
-
-| Event | Wait Time |
-|-------|-----------|
-| After TP exit | 2 minutes |
-| After SL hit | 10 minutes |
-| After rug/emergency | 30 minutes |
-
----
-
-## 📊 Backtest
-
-### Preset Strategies
-
-| Strategy | Risk | TP1 | SL | Trailing | Circuit |
-|----------|------|-----|----|----------|---------|
-| Conservative | 1% | +50% | -15% | 15% | -10% |
-| Balanced | 2% | +77.5% | -20% | 21.8% | -15% |
-| Aggressive | 3% | +100% | -25% | 30% | -20% |
-| Sniper | 2.5% | +60% | -15% | 25% | -12% |
-| Diamond Hands | 1.5% | +150% | -30% | 35% | -20% |
-
-### Cara Pakai
-
-**Terminal:**
-```bash
-npm run backtest                              # Default (balanced)
-npm run backtest:compare                      # Bandingkan semua strategi
-npm run backtest:aggressive                   # Jalankan aggressive
-npx ts-node src/backtest.ts compare conservative sniper  # Custom compare
-```
-
-**Telegram:**
-```
-/backtest                                     → Pilih mode
-/bt_custom 2 3 14 aggressive                  → Custom: 2 SOL, 3% risk, 14 hari
-```
-
----
-
-## 📈 Hasil Backtest
-
-### ⭐ Latest Results: 1 Day Test (Balanced Strategy)
-
-> **Test Date**: April 14, 2026  
-> **Configuration**: 1 SOL capital, 5% risk, 35% TP1, 15% SL, 20 tokens/day
-
-#### Performance Metrics
-
-| Metric | Value |
-|--------|-------|
-| 📅 Period | 1 days × 5min scans |
-| 💰 Starting Capital | 1.0000 SOL |
-| 💰 Ending Capital | **1.2197 SOL** |
-| 📈 Net Return | **+0.2197 SOL (+21.97%)** |
-| 🔄 Total Trades | 20 |
-| ✅ Wins | 15 |
-| ❌ Losses | 5 |
-| 📊 Win Rate | **75.0%** |
-| 🏆 Avg Win | +0.0164 SOL |
-| 💀 Avg Loss | -0.0052 SOL |
-| 📐 EV/Trade | **+0.0110 SOL** |
-| 📊 Profit Factor | **9.53** |
-| 📉 Max Drawdown | 1.06% |
-| 📈 Sharpe Ratio | 1.10 |
-| 💸 Total Fees | 0.0100 SOL |
-
-✅ **VERDICT: STRATEGY IS PROFITABLE** — EV per trade positif
-
----
-
-### Strategy Comparison (1 Day)
-
-| Metric | Conservative | Balanced | Aggressive | **Sniper** 🏆 | Diamond |
-|--------|-------------|----------|------------|---------------|---------|
-| **Return %** | +3.1% | +16.5% | +38.7% | **+91.8%** | +16.8% |
-| **Win Rate** | 54.3% | 58.9% | 50.0% | 51.4% | 39.3% |
-| **Profit Factor** | 1.72 | 2.17 | 1.93 | 2.17 | 1.68 |
-| **Max Drawdown** | 1.6% | 3.5% | 11.2% | 10.9% | 6.0% |
-| **Sharpe Ratio** | 0.27 | 0.35 | 0.27 | 0.31 | 0.25 |
-| **EV/Trade** | +0.0009 | +0.0029 | +0.0046 | **+0.0087** | +0.0030 |
-
-🏆 **WINNER (by Return)**: SNIPER STRATEGY  
-🛡️ **SAFEST (by Drawdown)**: CONSERVATIVE
-
----
-
-### Rekomendasi Strategy
-
-| Profile | Strategy | Return/Day | Win Rate | Max DD | Risk Level |
-|---------|----------|------------|----------|--------|------------|
-| **🛡️ Safe** | Conservative | +3.1% | 54.3% | 1.6% | Low |
-| **⚖️ Balanced** | Balanced | +16.5% | 58.9% | 3.5% | Medium |
-| **⚡ Aggressive** | Sniper | +91.8% | 51.4% | 10.9% | High |
-
-### Proyeksi Profit (Balanced Strategy)
-
-| Modal | 1 Hari | 7 Hari | 30 Hari |
-|-------|--------|--------|---------|
-| **0.5 SOL** | +0.11 SOL | +0.77 SOL | +3.30 SOL |
-| **1 SOL** | +0.22 SOL | +1.54 SOL | +6.59 SOL |
-| **2 SOL** | +0.44 SOL | +3.08 SOL | +13.18 SOL |
-| **5 SOL** | +1.10 SOL | +7.70 SOL | +32.95 SOL |
-
-⚠️ **Disclaimer**: Hasil backtest adalah simulasi berbasis algoritma random walk. Performa nyata bisa berbeda secara signifikan. Selalu mulai dengan modal kecil dan gunakan paper trading terlebih dahulu.
-
----
-
-## 🏗️ Arsitektur Flow
-
-```
-User (Telegram)
-    │
-    ▼
-┌─────────────┐
-│  index.ts   │ ← Main Orchestrator
-│  (Bot TG)   │
-└──────┬──────┘
-       │
-       ├─→ Buy Manual ──→ Security Gate ──→ Execute Swap
-       │                                      │
-       ├─→ AI Sniper ──→ Pump.fun WS ──→ Honeypot Check ──→ Security Gate ──→ Execute
-       │
-       ├─→ Alpha Monitor ──→ Wallet TX Detect ──→ Alpha Signal ──→ Security Gate ──→ Execute
-       │
-       ├─→ Position Monitor (500ms loop)
-       │       │
-       │       ├─→ Price Feed (WS + API + Cache)
-       │       ├─→ SL/TP Engine
-       │       ├─→ Emergency Check
-       │       └─→ Execute Sell (with retry)
-       │
-       ├─→ MEV Bot
-       │       ├─→ Mempool Scanner (Helius WS)
-       │       ├─→ Sandwich (Jito Bundle)
-       │       └─→ Arbitrage (Jupiter Quote)
-       │
-       └─→ Backtest Engine
-               ├─→ DexScreener API
-               ├─→ Security Filter
-               ├─→ Price Simulation
-               └─→ Strategy Comparison
-```
-
-### Infrastructure
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    INFRASTRUCTURE                        │
-├─────────────────────────────────────────────────────────┤
-│  Rate Limiter (per-endpoint) ← API Rate Limit           │
-│  SQLite (WAL) ← trades, positions, daily_stats          │
-│  Logger (Winston) ← error.log, combined.log             │
-│  Memory (JSON) ← ai_memory.json                         │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## 📦 Dependencies
-
-```json
-{
-  "dependencies": {
-    "@solana/spl-token": "^0.4.0",
-    "@solana/web3.js": "^1.95.0",
-    "axios": "^1.7.0",
-    "better-sqlite3": "^11.0.0",
-    "bs58": "^6.0.0",
-    "dotenv": "^16.4.0",
-    "node-telegram-bot-api": "^0.66.0",
-    "sharp": "^0.33.0",
-    "winston": "^3.13.0",
-    "ws": "^8.18.0"
-  }
-}
 ```
 
 ---
 
 ## 🔧 Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `TELEGRAM_BOT_TOKEN` | ✅ | Dari [@BotFather](https://t.me/BotFather) |
-| `SOLANA_PRIVATE_KEY` | ✅ | Base58 format, wallet khusus trading |
-| `HELIUS_API_KEY` | ✅ | [dev.helius.xyz](https://dev.helius.xyz) |
-| `CHAT_ID` | ✅ | Dari [@userinfobot](https://t.me/userinfobot) |
-| `GROQ_API_KEY` | ⚡ | Minimal satu AI provider |
-| `ANTHROPIC_API_KEY` | ⚡ | Opsional |
-| `OPENAI_API_KEY` | ⚡ | Opsional |
-| `JITO_API_KEY` | ❌ | Untuk MEV bot |
-| `DAILY_CAPITAL` | ❌ | Default: 1 SOL |
-| `BASE_RISK_PERCENT` | ❌ | Default: 2% |
-| `ALPHA_MULTIPLIER` | ❌ | Default: 1.5x |
-| `MEV_ENABLED` | ❌ | Default: false |
+### Wajib
+
+| Variable | Keterangan |
+|----------|------------|
+| `TELEGRAM_BOT_TOKEN` | Token bot dari `@BotFather` |
+| `SOLANA_PRIVATE_KEY` | Private key wallet (Base58) |
+| `HELIUS_API_KEY` | API key dari Helius |
+| Salah satu AI key | `GROQ_API_KEY` atau `ANTHROPIC_API_KEY` atau `OPENAI_API_KEY` |
+
+### Direkomendasikan
+
+| Variable | Keterangan |
+|----------|------------|
+| `CHAT_ID` | Chat ID untuk notifikasi Telegram |
+
+> Kompatibilitas lama: `TELEGRAM_CHAT_ID` masih didukung sebagai fallback untuk `CHAT_ID`.
+
+### Opsional
+
+- `JITO_API_KEY`
+- `DAILY_CAPITAL` (default `1`)
+- `BASE_RISK_PERCENT` (default `2`)
+- `ALPHA_MULTIPLIER` (default `1.5`)
+- `FEE_CAP` (default `0.5`)
+- `MEV_ENABLED` (default `false`)
+- `MEV_MIN_SPREAD_PERCENT` (default `2`)
+- `MEV_TRADE_SIZE_SOL` (default `0.1`)
+- `MEV_MIN_SOL_SIZE` (default `0.5`)
+- `MEV_MAX_SLIPPAGE` (default `10`)
+- `WHITELIST_MODE` (`open` / `whitelist` / `invite`)
+- `DAILY_REPORT_CHAT_ID`
+- `DEXSCREENER_API` (override endpoint)
 
 ---
 
-## ⚠️ Disclaimer
+## 📦 Scripts
 
-> **TRADING MEMECOIN ADALAH AKTIVITAS SPEKULATIF BERISIKO SANGAT TINGGI.**
+| Script | Fungsi |
+|--------|--------|
+| `npm run setup` | Wizard setup `.env` + build check |
+| `npm run dev` | Jalankan mode development (nodemon + ts-node) |
+| `npm start` | Jalankan bot via ts-node |
+| `npm run build` | Compile TypeScript ke `dist/` |
+| `npm run start:prod` | Jalankan hasil build (`dist/index.js`) |
+| `npm test` | Jalankan unit test (Jest) |
+| `npm run test:cov` | Coverage test |
+| `npm run backtest` | Run backtest default (balanced) |
+| `npm run backtest:compare` | Compare semua strategi |
+| `npm run backtest:aggressive` | Backtest strategy aggressive |
+| `npm run backtest:conservative` | Backtest strategy conservative |
+| `npm run migrate` | DB migration |
+| `npm run typecheck` | Type-check main code |
+| `npm run typecheck:test` | Type-check test files |
 
-- Kamu bisa kehilangan seluruh modal
-- Bot ini adalah alat bantu, **bukan mesin uang otomatis**
-- Tidak ada jaminan profit dalam bentuk apapun
-- Selalu gunakan uang yang siap kamu rugikan
-- DYOR (Do Your Own Research) sebelum trading
-- Mulai dengan modal kecil (0.1-0.5 SOL)
-- Paper trade dulu sebelum live
+---
+
+## 🤖 Telegram Commands
+
+| Command | Fungsi |
+|---------|--------|
+| `/start` | Menu utama |
+| `/help` | Bantuan command |
+| `/my_wallet` | Cek wallet address & balance |
+| `/status` | Status fitur |
+| `/report` | Laporan harian |
+| `/health` | Health check (RPC/DB/memory) |
+| `/backtest` | Jalankan backtest |
+| `/withdraw <addr> <amount>` | Withdraw SOL |
+| `/alpha_add <wallet>` | Tambah alpha wallet |
+| `/alpha_remove <wallet>` | Hapus alpha wallet |
+| `/alpha_list` | List alpha wallet |
+| `/rate_stats` | Statistik rate limiter |
+| `/price_stats` | Statistik feed harga |
+| `/bt_custom <capital> <risk%> <days> <strategy>` | Backtest custom |
+
+---
+
+## 📊 Backtest (Current Code Presets)
+
+Preset strategy pada kode saat ini:
+
+| Strategy | Risk | TP1 | TP2 | SL | Trailing |
+|----------|------|-----|-----|----|----------|
+| Conservative | 3% | 25% | 50% | 15% | 8% |
+| Balanced | 5% | 35% | 80% | 20% | 10% |
+| Aggressive | 8% | 50% | 120% | 25% | 12% |
+| Sniper | 10% | 60% | 150% | 30% | 15% |
+| Diamond Hands | 4% | 50% | 150% | 20% | 30% |
+
+Contoh:
+
+```bash
+npm run backtest
+npm run backtest:compare
+npm run backtest:aggressive
+```
+
+---
+
+## 🧠 Risk & Security Notes
+
+- Trading memecoin berisiko sangat tinggi.
+- Tidak ada jaminan profit.
+- Mulai dari modal kecil.
+- Gunakan paper trading dulu sebelum live.
+- `MEV_ENABLED=true` hanya untuk user yang benar-benar paham risikonya (termasuk aspek hukum/etika di wilayah masing-masing).
+
+---
+
+## 🏗️ Struktur Proyek (ringkas)
+
+- `src/index.ts` → orchestrator utama bot
+- `src/ai/` → logic agent, SLTP, fee mode, security
+- `src/data/` → market/security/honeypot data fetcher
+- `src/execution/` → swap executor + paper trading
+- `src/mev/` → scanner/arbitrage/sandwich modules
+- `src/database/` → sqlite repo + migration
+- `src/security/` → rate limiter & API limit
+- `src/state/` → memory state
+- `src/utils/` → logger, health, report, prelaunch check
+- `src/tests/` → unit tests
+
+---
+
+## 🩺 Troubleshooting Cepat
+
+### 1) `Configuration errors` saat start
+Jalankan:
+
+```bash
+npm run setup
+```
+
+Pastikan `.env` berisi semua variable wajib.
+
+### 2) Error merah di editor tapi build lulus
+Coba:
+- pilih TypeScript workspace version
+- restart TS server/editor
+
+### 3) Cek kualitas code cepat
+
+```bash
+npm run typecheck
+npm run typecheck:test
+npm test
+```
 
 ---
 
@@ -388,4 +246,4 @@ MIT
 
 ---
 
-**Kabayan Agent v3.0** — Built with ❤️ for Solana traders who stay disciplined
+**Kabayan Agent v3.0** — Built with ❤️ for disciplined Solana traders

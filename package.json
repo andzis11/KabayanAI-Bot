@@ -3,11 +3,14 @@
   "version": "3.0.0",
   "description": "AI Trading Bot On-Chain Solana | MEV Bot | AI Agent v2.0",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
-    "start": "ts-node src/index.ts",
-    "start:prod": "node dist/index.js",
-    "build": "tsc",
-    "dev": "nodemon --exec ts-node src/index.ts",
+    "start": "node init && ts-node src/index.ts",
+    "start:prod": "node init && node dist/index.js",
+    "build": "node init && tsc",
+    "dev": "node init && nodemon --exec ts-node src/index.ts",
     "migrate": "ts-node src/database/migrate.ts",
     "test": "jest",
     "test:cov": "jest --coverage",
@@ -15,7 +18,9 @@
     "backtest": "ts-node src/backtest.ts",
     "backtest:compare": "ts-node src/backtest.ts compare",
     "backtest:aggressive": "ts-node src/backtest.ts single aggressive",
-    "backtest:conservative": "ts-node src/backtest.ts single conservative"
+    "backtest:conservative": "ts-node src/backtest.ts single conservative",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck:test": "tsc --noEmit -p src/tests/tsconfig.json"
   },
   "dependencies": {
     "@solana/spl-token": "^0.4.0",
@@ -31,6 +36,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
+    "@types/jest": "^29.5.14",
     "@types/node": "^22.0.0",
     "@types/node-telegram-bot-api": "^0.64.0",
     "@types/ws": "^8.5.0",

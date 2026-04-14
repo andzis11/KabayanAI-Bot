@@ -8,8 +8,6 @@ combined.log
 error.log
 
 # Environment
-.env
-.env.local
 .env.*.local
 
 # Build output
@@ -24,7 +22,6 @@ backtest_results.json
 /data/
 
 # VS Code
-.vscode/
 *.code-workspace
 
 # OS
@@ -34,3 +31,4 @@ Thumbs.db
 # Temporary
 *.swp
 *~
+config.bat

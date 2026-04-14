@@ -1,4 +1,4 @@
-import dotenv from "dotenv";
+const dotenv = require("dotenv");
 dotenv.config();
 
 function requireEnv(key: string): string {
@@ -36,12 +36,16 @@ function validateEnv(): void {
   if (errors.length > 0) {
     console.error("\n❌ Configuration errors:\n");
     errors.forEach((e) => console.error(`   • ${e}`));
-    console.error("\nRun: bash setup.sh (or setup.ps1 on Windows)\n");
+    console.error("\nRun: npm run setup\n");
     process.exit(1);
   }
 
-  if (!process.env.CHAT_ID?.trim()) {
-    console.warn("⚠️  CHAT_ID not set — Telegram notifications disabled");
+  const chatId =
+    process.env.CHAT_ID?.trim() || process.env.TELEGRAM_CHAT_ID?.trim();
+  if (!chatId) {
+    console.warn(
+      "⚠️  CHAT_ID / TELEGRAM_CHAT_ID not set — Telegram notifications disabled",
+    );
   }
   if (!process.env.JITO_API_KEY?.trim()) {
     console.warn("⚠️  JITO_API_KEY not set — MEV Bot disabled");
@@ -52,7 +56,7 @@ validateEnv();
 
 export const ENV = {
   TELEGRAM_BOT_TOKEN: requireEnv("TELEGRAM_BOT_TOKEN"),
-  CHAT_ID: optionalEnv("CHAT_ID"),
+  CHAT_ID: optionalEnv("CHAT_ID", optionalEnv("TELEGRAM_CHAT_ID")),
   BOT_USERNAME: optionalEnv("BOT_USERNAME", "KabayanBot"),
 
   SOLANA_PRIVATE_KEY: requireEnv("SOLANA_PRIVATE_KEY"),

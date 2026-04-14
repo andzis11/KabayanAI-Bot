@@ -1,42 +1,52 @@
-describe('Security Gate', () => {
-  test('all 8 checks must pass', () => {
-    const checks = {
-      mint_authority_disabled: true,
-      freeze_authority_disabled: true,
-      transfer_simulation_ok: true,
-      top10_holders_ok: true,
-      bundled_supply_ok: true,
-      pool_liquidity_ok: true,
-      volume_to_mcap_ok: true,
-      dev_wallet_clean: true,
-    };
-    expect(Object.values(checks).every(v => v === true)).toBe(true);
+import { quickSecurityCheck } from "../ai/securityGate";
+
+describe("quickSecurityCheck", () => {
+  test("returns true when all checks are safe", () => {
+    const result = quickSecurityCheck(false, false, true);
+    expect(result).toBe(true);
   });
 
-  test('single failure blocks entire gate', () => {
-    const checks = {
-      mint_authority_disabled: true,
-      freeze_authority_disabled: false,
-      transfer_simulation_ok: true,
-      top10_holders_ok: true,
-      bundled_supply_ok: true,
-      pool_liquidity_ok: true,
-      volume_to_mcap_ok: true,
-      dev_wallet_clean: true,
-    };
-    expect(Object.values(checks).every(v => v === true)).toBe(false);
+  test("returns false when freeze authority is enabled", () => {
+    const result = quickSecurityCheck(true, false, true);
+    expect(result).toBe(false);
   });
 
-  test('top holders > 25% fails', () => {
-    expect(30 < 25).toBe(false);
+  test("returns false when mint authority is enabled", () => {
+    const result = quickSecurityCheck(false, true, true);
+    expect(result).toBe(false);
   });
 
-  test('bundled supply > 5 fails', () => {
-    expect(7 <= 5).toBe(false);
+  test("returns false when liquidity is not locked", () => {
+    const result = quickSecurityCheck(false, false, false);
+    expect(result).toBe(false);
   });
 
-  test('pool liquidity check', () => {
-    expect(80 > 75 || 15000 > 10000).toBe(true);
-    expect(50 > 75 || 5000 > 10000).toBe(false);
+  test("returns false when freeze and mint are both enabled", () => {
+    const result = quickSecurityCheck(true, true, true);
+    expect(result).toBe(false);
+  });
+
+  test("returns false when all risk flags are bad", () => {
+    const result = quickSecurityCheck(true, true, false);
+    expect(result).toBe(false);
+  });
+
+  test("fails if any single condition fails", () => {
+    const combinations: Array<[boolean, boolean, boolean]> = [
+      [true, false, true],
+      [false, true, true],
+      [false, false, false],
+    ];
+
+    for (const [hasFreeze, hasMint, liquidityLocked] of combinations) {
+      expect(quickSecurityCheck(hasFreeze, hasMint, liquidityLocked)).toBe(
+        false,
+      );
+    }
+  });
+
+  test("is deterministic for same input", () => {
+    expect(quickSecurityCheck(false, false, true)).toBe(true);
+    expect(quickSecurityCheck(false, false, true)).toBe(true);
   });
 });
