@@ -17,7 +17,7 @@ backtest_results/
 *.db
 comparison_results.json
 kabayan.db
-data/
+/data/
 
 # VS Code
 .vscode/
