@@ -1,4 +1,4 @@
-import { Connection, PublicKey, VersionedTransaction } from '@solana/web3.js';
+import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
 interface SwapOptions {
     maxRetries: number;
     retryDelayMs: number;
@@ -7,7 +7,7 @@ interface SwapOptions {
 interface SwapResult {
     success: boolean;
     txHash: string | null;
-    method: 'jupiter' | 'raydium' | 'none';
+    method: "jupiter" | "raydium" | "none";
     attempts: number;
     error: string | null;
 }

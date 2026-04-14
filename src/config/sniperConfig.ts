@@ -1,4 +1,6 @@
-import { logger } from '../utils/logger';
+import * as fs from "fs";
+import * as path from "path";
+import { logger } from "../utils/logger";
 
 export interface SniperConfig {
   amountSol: number;
@@ -9,39 +11,78 @@ export interface SniperConfig {
   honeypotCheck: boolean;
   securityGate: boolean;
   enabled: boolean;
-  minCapitalRequired: number;  // modal minimum sebelum sniper boleh aktif
-  maxDailyTrades: number;      // batas jumlah trade per hari
+  minCapitalRequired: number; // modal minimum sebelum sniper boleh aktif
+  maxDailyTrades: number; // batas jumlah trade per hari
 }
 
+const CONFIG_FILE = path.join(__dirname, "../../data/sniper_config.json");
+
 const DEFAULT: SniperConfig = {
-  amountSol: 0.05,           // naik dari 0.02 — minimum viable dengan NORMAL fee
-  feeMode: 'NORMAL',         // turun dari AGGRESSIVE — lebih aman untuk modal standar
+  amountSol: 0.05, // naik dari 0.02 — minimum viable dengan NORMAL fee
+  feeMode: "NORMAL", // turun dari AGGRESSIVE — lebih aman untuk modal standar
   maxAgeSeconds: 300,
   minLiquidity: 5000,
   maxTopHolder: 25,
   honeypotCheck: true,
   securityGate: true,
   enabled: false,
-  minCapitalRequired: 0.5,   // sniper tidak boleh aktif kalau modal < 0.5 SOL
-  maxDailyTrades: 20,        // max 20 trade/hari untuk kontrol fee drain
+  minCapitalRequired: 0.5, // sniper tidak boleh aktif kalau modal < 0.5 SOL
+  maxDailyTrades: 20, // max 20 trade/hari untuk kontrol fee drain
 };
 
 let config: SniperConfig = { ...DEFAULT };
+
+function loadSniperConfig(): void {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const raw = fs.readFileSync(CONFIG_FILE, "utf8");
+      const saved = JSON.parse(raw);
+      config = { ...DEFAULT, ...saved };
+      logger.info("[SNIPER_CONFIG] Loaded from file");
+    } else {
+      logger.info("[SNIPER_CONFIG] No saved config, using defaults");
+    }
+  } catch (error: any) {
+    logger.warn(
+      "[SNIPER_CONFIG] Failed to load: " + error.message + ", using defaults",
+    );
+  }
+}
+
+function saveSniperConfigToFile(): void {
+  try {
+    const dir = path.dirname(CONFIG_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), "utf8");
+    logger.info("[SNIPER_CONFIG] Saved to file");
+  } catch (error: any) {
+    logger.warn("[SNIPER_CONFIG] Failed to save: " + error.message);
+  }
+}
+
+// Load config at module init
+loadSniperConfig();
 
 export function getSniperConfig(): SniperConfig {
   return { ...config };
 }
 
-export function updateSniperConfig(partial: Partial<SniperConfig>): SniperConfig {
+export function updateSniperConfig(
+  partial: Partial<SniperConfig>,
+): SniperConfig {
   config = { ...config, ...partial };
-  logger.info('[SNIPER_CONFIG] Updated: ' + JSON.stringify(partial));
+  saveSniperConfigToFile();
+  logger.info("[SNIPER_CONFIG] Updated: " + JSON.stringify(partial));
   return { ...config };
 }
 
 export function resetSniperConfig(): SniperConfig {
   config = { ...DEFAULT };
+  saveSniperConfigToFile();
   return { ...config };
 }
+
+export { loadSniperConfig, saveSniperConfigToFile as saveSniperConfig };
 
 // Validasi apakah sniper boleh diaktifkan berdasarkan modal saat ini
 export function validateSniperActivation(currentCapital: number): {
@@ -59,7 +100,7 @@ export function validateSniperActivation(currentCapital: number): {
   }
 
   // Cek fee ratio untuk trade size yang dikonfigurasi
-  const { calcFeeRatio } = require('./feeMode');
+  const { calcFeeRatio } = require("./feeMode");
   const feeRatio = calcFeeRatio(config.amountSol, config.feeMode as any);
   if (feeRatio > 25) {
     return {
@@ -70,5 +111,5 @@ export function validateSniperActivation(currentCapital: number): {
     };
   }
 
-  return { allowed: true, reason: 'OK' };
+  return { allowed: true, reason: "OK" };
 }

@@ -20,4 +20,5 @@ export declare const ENV: {
     readonly MEV_TRADE_SIZE_SOL: number;
     readonly WHITELIST_MODE: "open" | "whitelist" | "invite";
     readonly DAILY_REPORT_CHAT_ID: string;
+    readonly DEXSCREENER_API: string;
 };

@@ -168,6 +168,8 @@ async function runSecurityGate(connection, mint, devWallet) {
     else {
         checks.dev_wallet_clean = true; // tidak ada dev wallet = anggap ok
     }
+    // Clamp score to prevent negative values
+    score = Math.max(0, score);
     // PASSED jika score >= 50 dan tidak ada honeypot/mint authority
     const passed = score >= 50 &&
         !issues.includes("HONEYPOT_DETECTED") &&

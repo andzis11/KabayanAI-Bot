@@ -86,4 +86,8 @@ export const ENV = {
     | "whitelist"
     | "invite",
   DAILY_REPORT_CHAT_ID: optionalEnv("DAILY_REPORT_CHAT_ID"),
+
+  DEXSCREENER_API:
+    process.env.DEXSCREENER_API ||
+    "https://api.dexscreener.com/latest/dex/tokens/",
 } as const;

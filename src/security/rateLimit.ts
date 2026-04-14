@@ -1,9 +1,18 @@
-import { logger } from '../utils/logger';
+import { logger } from "../utils/logger";
 
-interface RateLimitEntry { count: number; resetAt: number; }
+interface RateLimitEntry {
+  count: number;
+  resetAt: number;
+}
 const rateLimits: Map<string, RateLimitEntry> = new Map();
 
-export function checkRateLimit(action: string, max: number = 10, windowMs: number = 60000): boolean {
+let cleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+export function checkRateLimit(
+  action: string,
+  max: number = 10,
+  windowMs: number = 60000,
+): boolean {
   const now = Date.now();
   const entry = rateLimits.get(action);
 
@@ -17,7 +26,14 @@ export function checkRateLimit(action: string, max: number = 10, windowMs: numbe
   return true;
 }
 
-setInterval(() => {
+cleanupInterval = setInterval(() => {
   const now = Date.now();
   for (const [k, e] of rateLimits) if (now > e.resetAt) rateLimits.delete(k);
 }, 60000);
+
+export function cleanup(): void {
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval);
+    cleanupInterval = null;
+  }
+}

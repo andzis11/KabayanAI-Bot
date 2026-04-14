@@ -28,10 +28,14 @@ import { executeSwap } from "./execution/swap";
 import { paperBuy, paperSell } from "./execution/paper";
 import { startPumpFunScanner } from "./scanners/pumpfun";
 import { loadMemory } from "./state/memory";
-import { checkRateLimit } from "./security/rateLimit";
+import {
+  checkRateLimit,
+  cleanup as cleanupRateLimit,
+} from "./security/rateLimit";
 import { getRateLimitStats } from "./security/apiRateLimit";
 import { generateDailyReport, formatDailyReport } from "./utils/dailyReport";
 import { checkHealth } from "./utils/healthCheck";
+import { startHealthServer, stopHealthServer } from "./utils/healthServer";
 import { migrateOldData } from "./database/migrate";
 import { loadPositions } from "./database/positionRepo";
 import { saveDailyState } from "./database/dailyStatsRepo";
@@ -483,6 +487,13 @@ bot.onText(/\/alpha_add (.+)/, async (msg: any, match: any) => {
   }
   const w = match?.[1]?.trim();
   if (w) {
+    const { PublicKey } = await import("@solana/web3.js");
+    try {
+      new PublicKey(w);
+    } catch {
+      await bot.sendMessage(msg.chat.id, "\u274c Invalid Solana address");
+      return;
+    }
     addAlphaWallet(w);
     await bot.sendMessage(msg.chat.id, "Added: " + w.slice(0, 12) + "...");
   }
@@ -938,7 +949,17 @@ bot.on("callback_query", async (q: any) => {
 
   // SET HANDLERS
   if (data?.startsWith("set_amount:")) {
-    updateSniperConfig({ amountSol: parseFloat(data.split(":")[1]) });
+    const parts = data.split(":");
+    if (parts.length < 2) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
+    const val = parseFloat(parts[1]);
+    if (isNaN(val)) {
+      await bot.sendMessage(chatId, "⚠️ Invalid amount");
+      return;
+    }
+    updateSniperConfig({ amountSol: val });
     await bot.sendMessage(
       chatId,
       "Set!\n\n" + formatSniperStatus(),
@@ -947,7 +968,12 @@ bot.on("callback_query", async (q: any) => {
     return;
   }
   if (data?.startsWith("set_fee:")) {
-    updateSniperConfig({ feeMode: data.split(":")[1] });
+    const parts = data.split(":");
+    if (parts.length < 2) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
+    updateSniperConfig({ feeMode: parts[1] });
     await bot.sendMessage(
       chatId,
       "Set!\n\n" + formatSniperStatus(),
@@ -956,7 +982,17 @@ bot.on("callback_query", async (q: any) => {
     return;
   }
   if (data?.startsWith("set_age:")) {
-    updateSniperConfig({ maxAgeSeconds: parseInt(data.split(":")[1]) });
+    const parts = data.split(":");
+    if (parts.length < 2) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
+    const val = parseInt(parts[1]);
+    if (isNaN(val)) {
+      await bot.sendMessage(chatId, "⚠️ Invalid age");
+      return;
+    }
+    updateSniperConfig({ maxAgeSeconds: val });
     await bot.sendMessage(
       chatId,
       "Set!\n\n" + formatSniperStatus(),
@@ -965,7 +1001,17 @@ bot.on("callback_query", async (q: any) => {
     return;
   }
   if (data?.startsWith("set_liq:")) {
-    updateSniperConfig({ minLiquidity: parseInt(data.split(":")[1]) });
+    const parts = data.split(":");
+    if (parts.length < 2) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
+    const val = parseInt(parts[1]);
+    if (isNaN(val)) {
+      await bot.sendMessage(chatId, "⚠️ Invalid liquidity");
+      return;
+    }
+    updateSniperConfig({ minLiquidity: val });
     await bot.sendMessage(
       chatId,
       "Set!\n\n" + formatSniperStatus(),
@@ -974,7 +1020,17 @@ bot.on("callback_query", async (q: any) => {
     return;
   }
   if (data?.startsWith("set_holder:")) {
-    updateSniperConfig({ maxTopHolder: parseInt(data.split(":")[1]) });
+    const parts = data.split(":");
+    if (parts.length < 2) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
+    const val = parseInt(parts[1]);
+    if (isNaN(val)) {
+      await bot.sendMessage(chatId, "⚠️ Invalid holder %");
+      return;
+    }
+    updateSniperConfig({ maxTopHolder: val });
     await bot.sendMessage(
       chatId,
       "Set!\n\n" + formatSniperStatus(),
@@ -986,8 +1042,16 @@ bot.on("callback_query", async (q: any) => {
   // MANUAL BUY
   if (data?.startsWith("manual_buy:")) {
     const parts = data.split(":");
+    if (parts.length < 3) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
     const ca = parts[1];
     const amount = parseFloat(parts[2]);
+    if (!ca || isNaN(amount)) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
     const fee = getFeeSchedule("AGGRESSIVE");
     await bot.sendMessage(
       chatId,
@@ -1042,7 +1106,16 @@ bot.on("callback_query", async (q: any) => {
 
   // SELL CHOOSE - pick percentage
   if (data?.startsWith("sell_choose:")) {
-    const mint = data.split(":")[1];
+    const parts = data.split(":");
+    if (parts.length < 2) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
+    const mint = parts[1];
+    if (!mint) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
     const pos = agent.getPositions().find((p) => p.tokenMint === mint);
     const amountInfo = pos ? " (" + pos.amountSol.toFixed(3) + " SOL)" : "";
     await bot.sendMessage(
@@ -1068,8 +1141,16 @@ bot.on("callback_query", async (q: any) => {
   // SELL PERCENTAGE - execute sell
   if (data?.startsWith("sell_pct:")) {
     const parts = data.split(":");
+    if (parts.length < 3) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
     const mint = parts[1];
     const pct = parseInt(parts[2]);
+    if (!mint || isNaN(pct)) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
     const fee = getFeeSchedule("AGGRESSIVE");
     await bot.sendMessage(
       chatId,
@@ -1118,7 +1199,16 @@ bot.on("callback_query", async (q: any) => {
 
   // SELL ALL (old handler - direct sell)
   if (data?.startsWith("sell:")) {
-    const mint = data.split(":")[1];
+    const parts = data.split(":");
+    if (parts.length < 2) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
+    const mint = parts[1];
+    if (!mint) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
     const fee = getFeeSchedule("AGGRESSIVE");
     if (paperMode) {
       const pr = await priceFeed.getPrice(mint);
@@ -1153,7 +1243,16 @@ bot.on("callback_query", async (q: any) => {
 
   // BACKTEST RUN
   if (data?.startsWith("bt_run:")) {
-    const sn = data.split(":")[1];
+    const parts = data.split(":");
+    if (parts.length < 2) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
+    const sn = parts[1];
+    if (!sn) {
+      await bot.sendMessage(chatId, "⚠️ Invalid callback data");
+      return;
+    }
     const preset = STRATEGIES[sn];
     if (!preset) {
       await bot.sendMessage(chatId, "Unknown: " + sn);
@@ -1192,155 +1291,164 @@ async function handleBuyManual(chatId: number) {
     chatId,
     "📥 Buy Manual\n\nKirim Contract Address (CA):",
   );
-  const timeout = setTimeout(() => {
-    bot.removeListener("message", listener);
+
+  let listener: ((msg: any) => Promise<void>) | null = null;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  const cleanup = () => {
+    if (timeout) clearTimeout(timeout);
+    if (listener) bot.removeListener("message", listener);
+  };
+
+  listener = async (msg: any) => {
+    try {
+      if (msg.chat.id !== chatId) return;
+      const ca = msg.text?.trim();
+      if (!ca || ca.length < 32 || ca.startsWith("/")) {
+        cleanup();
+        return;
+      }
+      cleanup();
+      const loadingMsg = await bot.sendMessage(
+        chatId,
+        "\u23F3 Analyzing " + ca.slice(0, 12) + "...",
+      );
+
+      // Fetch token info
+      let tokenName = "Unknown";
+      let tokenSymbol = "???";
+      let tokenPrice = 0;
+      try {
+        const res = await fetch(ENV.DEXSCREENER_API + ca);
+        const data = (await res.json()) as any;
+        if (data.pairs && data.pairs.length > 0) {
+          tokenName = data.pairs[0].baseToken?.name || "Unknown";
+          tokenSymbol = data.pairs[0].baseToken?.symbol || "???";
+          tokenPrice = parseFloat(data.pairs[0].priceUsd) || 0;
+        }
+      } catch (e: any) {
+        // Try backup
+        try {
+          const pr = await priceFeed.getPrice(ca);
+          if (pr) tokenPrice = pr.price;
+        } catch (_) {}
+      }
+
+      // Run security check
+      const output = await agent.evaluateBuy(ca, null, 999, 0, 0, false);
+      const passed = output.aksi === "BELI";
+      const reason = output.alasan || "UNKNOWN";
+
+      // Fetch detailed security info
+      let liquidity = 0;
+      let topHolderPct = 0;
+      let pairAge = "";
+      let volume24h = 0;
+      let mcap = 0;
+      let isHoneypot = false;
+      let hasSocials = false;
+      try {
+        const res2 = await fetch(ENV.DEXSCREENER_API + ca);
+        const data2 = (await res2.json()) as any;
+        if (data2.pairs && data2.pairs.length > 0) {
+          const pair = data2.pairs[0];
+          liquidity = parseFloat(pair.liquidity?.usd) || 0;
+          volume24h = parseFloat(pair.volume?.h24) || 0;
+          mcap = parseFloat(pair.fdv) || parseFloat(pair.marketCap) || 0;
+          if (pair.pairCreatedAt) {
+            const age = Date.now() - pair.pairCreatedAt;
+            const mins = Math.floor(age / 60000);
+            const hrs = Math.floor(mins / 60);
+            pairAge = hrs > 0 ? hrs + "h " + (mins % 60) + "m" : mins + "m";
+          }
+          hasSocials = !!(
+            pair.info?.socials?.length || pair.info?.websites?.length
+          );
+        }
+      } catch (_) {}
+
+      // Get top holder info from agent security check
+      try {
+        const securityResult = await agent.evaluateBuy(
+          ca,
+          null,
+          999,
+          0,
+          0,
+          false,
+        );
+        isHoneypot = securityResult.alasan?.includes("HONEYPOT") || false;
+      } catch (_) {}
+
+      // Security score color
+      const scoreEmoji = passed ? "\u2705" : "\u274c";
+      const scoreText = passed ? "PASSED" : "FAILED";
+
+      let infoText = "📥 BUY TOKEN\n";
+      infoText += "\n🏷️ Name: " + tokenName + " (" + tokenSymbol + ")\n";
+      infoText += "📍 CA: " + ca.slice(0, 16) + "..." + ca.slice(-6) + "\n";
+      if (tokenPrice > 0)
+        infoText += "💰 Price: $" + tokenPrice.toFixed(10) + "\n";
+      infoText += "\n━━━ Security Report ━━━\n";
+      infoText += scoreEmoji + " Score: " + scoreText + "\n";
+      if (liquidity > 0)
+        infoText +=
+          "💧 Liquidity: $" +
+          (liquidity >= 1000
+            ? (liquidity / 1000).toFixed(1) + "K"
+            : liquidity.toFixed(0)) +
+          "\n";
+      if (volume24h > 0)
+        infoText +=
+          "📊 Volume 24h: $" +
+          (volume24h >= 1000
+            ? (volume24h / 1000).toFixed(1) + "K"
+            : volume24h.toFixed(0)) +
+          "\n";
+      if (mcap > 0)
+        infoText +=
+          "📈 MCap: $" +
+          (mcap >= 1000000
+            ? (mcap / 1000000).toFixed(1) + "M"
+            : mcap >= 1000
+              ? (mcap / 1000).toFixed(1) + "K"
+              : mcap.toFixed(0)) +
+          "\n";
+      if (pairAge) infoText += "⏱️ Age: " + pairAge + "\n";
+      infoText +=
+        "🔍 Honeypot: " + (isHoneypot ? "\u274c YES" : "\u2705 NO") + "\n";
+      infoText +=
+        "🌐 Socials: " + (hasSocials ? "\u2705 Yes" : "\u274c None") + "\n";
+      infoText += "\n📋 Reason: " + reason + "\n";
+      infoText += "\n📥 Pilih jumlah:";
+
+      await bot.sendMessage(chatId, infoText, {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "0.01 SOL", callback_data: "manual_buy:" + ca + ":0.01" },
+              { text: "0.02 SOL", callback_data: "manual_buy:" + ca + ":0.02" },
+              { text: "0.05 SOL", callback_data: "manual_buy:" + ca + ":0.05" },
+            ],
+            [
+              { text: "0.10 SOL", callback_data: "manual_buy:" + ca + ":0.10" },
+              { text: "0.20 SOL", callback_data: "manual_buy:" + ca + ":0.20" },
+              { text: "0.50 SOL", callback_data: "manual_buy:" + ca + ":0.50" },
+            ],
+            [{ text: "\u274c Cancel", callback_data: "main_menu" }],
+          ],
+        },
+      });
+    } finally {
+      cleanup();
+    }
+  };
+
+  timeout = setTimeout(() => {
+    cleanup();
     bot.sendMessage(chatId, "\u23f0 Timeout - cancelled");
   }, 30000);
-  const listener = async (msg: any) => {
-    if (msg.chat.id !== chatId) return;
-    const ca = msg.text?.trim();
-    if (!ca || ca.length < 32 || ca.startsWith("/")) {
-      clearTimeout(timeout);
-      bot.removeListener("message", listener);
-      return;
-    }
-    clearTimeout(timeout);
-    bot.removeListener("message", listener);
-    const loadingMsg = await bot.sendMessage(
-      chatId,
-      "\u23F3 Analyzing " + ca.slice(0, 12) + "...",
-    );
 
-    // Fetch token info
-    let tokenName = "Unknown";
-    let tokenSymbol = "???";
-    let tokenPrice = 0;
-    try {
-      const res = await fetch(
-        "https://api.dexscreener.com/latest/dex/tokens/" + ca,
-      );
-      const data = (await res.json()) as any;
-      if (data.pairs && data.pairs.length > 0) {
-        tokenName = data.pairs[0].baseToken?.name || "Unknown";
-        tokenSymbol = data.pairs[0].baseToken?.symbol || "???";
-        tokenPrice = parseFloat(data.pairs[0].priceUsd) || 0;
-      }
-    } catch (e: any) {
-      // Try backup
-      try {
-        const pr = await priceFeed.getPrice(ca);
-        if (pr) tokenPrice = pr.price;
-      } catch (_) {}
-    }
-
-    // Run security check
-    const output = await agent.evaluateBuy(ca, null, 999, 0, 0, false);
-    const passed = output.aksi === "BELI";
-    const reason = output.alasan || "UNKNOWN";
-
-    // Fetch detailed security info
-    let liquidity = 0;
-    let topHolderPct = 0;
-    let pairAge = "";
-    let volume24h = 0;
-    let mcap = 0;
-    let isHoneypot = false;
-    let hasSocials = false;
-    try {
-      const res2 = await fetch(
-        "https://api.dexscreener.com/latest/dex/tokens/" + ca,
-      );
-      const data2 = (await res2.json()) as any;
-      if (data2.pairs && data2.pairs.length > 0) {
-        const pair = data2.pairs[0];
-        liquidity = parseFloat(pair.liquidity?.usd) || 0;
-        volume24h = parseFloat(pair.volume?.h24) || 0;
-        mcap = parseFloat(pair.fdv) || parseFloat(pair.marketCap) || 0;
-        if (pair.pairCreatedAt) {
-          const age = Date.now() - pair.pairCreatedAt;
-          const mins = Math.floor(age / 60000);
-          const hrs = Math.floor(mins / 60);
-          pairAge = hrs > 0 ? hrs + "h " + (mins % 60) + "m" : mins + "m";
-        }
-        hasSocials = !!(
-          pair.info?.socials?.length || pair.info?.websites?.length
-        );
-      }
-    } catch (_) {}
-
-    // Get top holder info from agent security check
-    try {
-      const securityResult = await agent.evaluateBuy(
-        ca,
-        null,
-        999,
-        0,
-        0,
-        false,
-      );
-      isHoneypot = securityResult.alasan?.includes("HONEYPOT") || false;
-    } catch (_) {}
-
-    // Security score color
-    const scoreEmoji = passed ? "\u2705" : "\u274c";
-    const scoreText = passed ? "PASSED" : "FAILED";
-
-    let infoText = "📥 BUY TOKEN\n";
-    infoText += "\n🏷️ Name: " + tokenName + " (" + tokenSymbol + ")\n";
-    infoText += "📍 CA: " + ca.slice(0, 16) + "..." + ca.slice(-6) + "\n";
-    if (tokenPrice > 0)
-      infoText += "💰 Price: $" + tokenPrice.toFixed(10) + "\n";
-    infoText += "\n━━━ Security Report ━━━\n";
-    infoText += scoreEmoji + " Score: " + scoreText + "\n";
-    if (liquidity > 0)
-      infoText +=
-        "💧 Liquidity: $" +
-        (liquidity >= 1000
-          ? (liquidity / 1000).toFixed(1) + "K"
-          : liquidity.toFixed(0)) +
-        "\n";
-    if (volume24h > 0)
-      infoText +=
-        "📊 Volume 24h: $" +
-        (volume24h >= 1000
-          ? (volume24h / 1000).toFixed(1) + "K"
-          : volume24h.toFixed(0)) +
-        "\n";
-    if (mcap > 0)
-      infoText +=
-        "📈 MCap: $" +
-        (mcap >= 1000000
-          ? (mcap / 1000000).toFixed(1) + "M"
-          : mcap >= 1000
-            ? (mcap / 1000).toFixed(1) + "K"
-            : mcap.toFixed(0)) +
-        "\n";
-    if (pairAge) infoText += "⏱️ Age: " + pairAge + "\n";
-    infoText +=
-      "🔍 Honeypot: " + (isHoneypot ? "\u274c YES" : "\u2705 NO") + "\n";
-    infoText +=
-      "🌐 Socials: " + (hasSocials ? "\u2705 Yes" : "\u274c None") + "\n";
-    infoText += "\n📋 Reason: " + reason + "\n";
-    infoText += "\n📥 Pilih jumlah:";
-
-    await bot.sendMessage(chatId, infoText, {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "0.01 SOL", callback_data: "manual_buy:" + ca + ":0.01" },
-            { text: "0.02 SOL", callback_data: "manual_buy:" + ca + ":0.02" },
-            { text: "0.05 SOL", callback_data: "manual_buy:" + ca + ":0.05" },
-          ],
-          [
-            { text: "0.10 SOL", callback_data: "manual_buy:" + ca + ":0.10" },
-            { text: "0.20 SOL", callback_data: "manual_buy:" + ca + ":0.20" },
-            { text: "0.50 SOL", callback_data: "manual_buy:" + ca + ":0.50" },
-          ],
-          [{ text: "\u274c Cancel", callback_data: "main_menu" }],
-        ],
-      },
-    });
-  };
   bot.once("message", listener);
 }
 
@@ -1372,9 +1480,7 @@ function startAISniper(chatId: number) {
       let sniperLiq = 0;
       let sniperAge = "";
       try {
-        const res = await fetch(
-          "https://api.dexscreener.com/latest/dex/tokens/" + token.mint,
-        );
+        const res = await fetch(ENV.DEXSCREENER_API + token.mint);
         const data = (await res.json()) as any;
         if (data.pairs && data.pairs.length > 0) {
           sniperName = data.pairs[0].baseToken?.symbol || sniperName;
@@ -1652,6 +1758,7 @@ async function shutdown(signal: string) {
     alphaMonitorInterval = null;
   }
   priceFeed.stop();
+  cleanupRateLimit();
   try {
     saveDailyState(agent.getState());
   } catch (e: any) {
@@ -1664,6 +1771,7 @@ async function shutdown(signal: string) {
     logger.error("[SHUTDOWN] DB error: " + e.message);
   }
   releaseLock();
+  stopHealthServer();
   process.exit(0);
 }
 
@@ -1703,6 +1811,7 @@ async function startup() {
     for (const p of savedPositions) agent.addPosition(p);
   }
   priceFeed.start();
+  startHealthServer();
   if (savedPositions.length > 0)
     await priceFeed.warmCache(savedPositions.map((p) => p.tokenMint));
   const addr = await getWalletAddress();

@@ -70,5 +70,7 @@ exports.ENV = {
     MEV_TRADE_SIZE_SOL: parseFloat(optionalEnv("MEV_TRADE_SIZE_SOL", "0.1")),
     WHITELIST_MODE: optionalEnv("WHITELIST_MODE", "open"),
     DAILY_REPORT_CHAT_ID: optionalEnv("DAILY_REPORT_CHAT_ID"),
+    DEXSCREENER_API: process.env.DEXSCREENER_API ||
+        "https://api.dexscreener.com/latest/dex/tokens/",
 };
 //# sourceMappingURL=env.js.map
